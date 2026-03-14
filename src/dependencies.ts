@@ -87,6 +87,16 @@ export function extractDependencies(
 
 const OSV_API = "https://api.osv.dev/v1/querybatch";
 
+async function fetchVulnDetails(id: string): Promise<OsvVulnerability | null> {
+  try {
+    const res = await fetch(`https://api.osv.dev/v1/vulns/${id}`);
+    if (!res.ok) return null;
+    return (await res.json()) as OsvVulnerability;
+  } catch {
+    return null;
+  }
+}
+
 export async function queryOsv(
   deps: Dependency[],
 ): Promise<Map<string, OsvVulnerability[]>> {
@@ -109,12 +119,20 @@ export async function queryOsv(
     throw new Error(`OSV API ${res.status}: ${await res.text()}`);
   }
 
-  const data = (await res.json()) as { results: Array<{ vulns?: OsvVulnerability[] }> };
+  const data = (await res.json()) as { results: Array<{ vulns?: Array<{ id: string }> }> };
   const vulnMap = new Map<string, OsvVulnerability[]>();
 
+  // Batch endpoint returns only IDs — fetch full details per vuln
   for (let i = 0; i < deps.length; i++) {
-    const vulns = data.results[i]?.vulns;
-    if (vulns && vulns.length > 0) {
+    const vulnRefs = data.results[i]?.vulns;
+    if (!vulnRefs || vulnRefs.length === 0) continue;
+
+    const details = await Promise.all(
+      vulnRefs.map((v) => fetchVulnDetails(v.id)),
+    );
+
+    const vulns = details.filter((v): v is OsvVulnerability => v !== null);
+    if (vulns.length > 0) {
       vulnMap.set(`${deps[i].ecosystem}:${deps[i].name}@${deps[i].version}`, vulns);
     }
   }
@@ -129,7 +147,27 @@ export async function queryOsv(
 function osvSeverity(vuln: OsvVulnerability): Severity {
   const score = vuln.severity?.[0]?.score;
   if (!score) return Severity.MEDIUM;
-  const cvss = parseFloat(score);
+
+  // OSV returns CVSS vector string like "CVSS:3.1/AV:N/AC:L/..." or a numeric score
+  const numericMatch = score.match(/(\d+\.?\d*)/);
+  if (!numericMatch) return Severity.MEDIUM;
+
+  // If it's a CVSS vector, extract base score from database_specific or parse vector
+  // For CVSS vectors, use the database_specific score if available
+  const cvss = parseFloat(numericMatch[1]);
+  // CVSS vectors start with version (3.1), not the actual score
+  if (score.startsWith("CVSS:")) {
+    // Extract severity from vector: look for high-impact indicators
+    const hasNetworkAccess = score.includes("/AV:N");
+    const lowComplexity = score.includes("/AC:L");
+    const highImpact = score.includes("/I:H") || score.includes("/A:H") || score.includes("/C:H");
+
+    if (hasNetworkAccess && lowComplexity && highImpact) return Severity.CRITICAL;
+    if (hasNetworkAccess && highImpact) return Severity.HIGH;
+    if (highImpact) return Severity.MEDIUM;
+    return Severity.LOW;
+  }
+
   if (cvss >= 9.0) return Severity.CRITICAL;
   if (cvss >= 7.0) return Severity.HIGH;
   if (cvss >= 4.0) return Severity.MEDIUM;
