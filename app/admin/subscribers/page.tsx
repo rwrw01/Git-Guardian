@@ -58,7 +58,7 @@ export default function SubscribersPage() {
       const res = await fetch("/api/admin/scans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ githubUsername: username, sendEmail: true }),
+        body: JSON.stringify({ githubUsername: username, sendEmail: true, useDeepseek: true }),
       });
       const result = await res.json();
       if (res.ok) {
