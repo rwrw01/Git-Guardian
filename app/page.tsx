@@ -26,7 +26,7 @@ export default function Home() {
 
       if (!res.ok) {
         setStatus("error");
-        setMessage(data.message ?? data.error ?? "Something went wrong");
+        setMessage(data.message ?? data.error ?? "Er ging iets mis");
         return;
       }
 
@@ -34,27 +34,33 @@ export default function Home() {
       setMessage(data.message);
     } catch {
       setStatus("error");
-      setMessage("Network error. Please try again.");
+      setMessage("Netwerkfout. Probeer het opnieuw.");
     }
   }
 
   return (
     <main
       style={{
-        maxWidth: 640,
+        maxWidth: 720,
         margin: "0 auto",
         padding: "60px 20px",
       }}
     >
-      <h1 style={{ fontSize: 36, marginBottom: 8, color: "#fff" }}>
+      {/* Hero */}
+      <h1 style={{ fontSize: 40, marginBottom: 8, color: "#fff" }}>
         <span style={{ color: "#2ea043" }}>Git</span> Guardian
       </h1>
-      <p style={{ fontSize: 18, color: "#9ca3af", marginBottom: 40, lineHeight: 1.6 }}>
-        Scan your public GitHub repositories for leaked secrets, vulnerable
-        dependencies, and exposed personal data. Free, one-time scan — report
-        delivered by email.
+      <p style={{ fontSize: 20, color: "#d1d5db", marginBottom: 12, lineHeight: 1.5, fontWeight: 500 }}>
+        Bescherm je code tegen dezelfde dreigingen die hackers en cybercriminelen ook zien.
+      </p>
+      <p style={{ fontSize: 16, color: "#9ca3af", marginBottom: 40, lineHeight: 1.7 }}>
+        Publieke GitHub-repositories zijn zichtbaar voor iedereen &mdash; ook voor kwaadwillenden.
+        Git Guardian scant jouw repositories op gelekte wachtwoorden, API-sleutels, bekende
+        kwetsbaarheden in software en onbedoeld gepubliceerde persoonsgegevens. Binnen een minuut
+        weet je waar de risico&apos;s zitten. <strong style={{ color: "#d1d5db" }}>Volledig gratis.</strong>
       </p>
 
+      {/* Scan form */}
       <div
         style={{
           background: "rgba(255, 255, 255, 0.05)",
@@ -65,7 +71,7 @@ export default function Home() {
         }}
       >
         <h2 style={{ fontSize: 20, marginTop: 0, marginBottom: 24, color: "#fff" }}>
-          Start a scan
+          Gratis scan starten
         </h2>
 
         <form onSubmit={handleSubmit}>
@@ -74,7 +80,7 @@ export default function Home() {
               htmlFor="username"
               style={{ display: "block", fontWeight: 600, marginBottom: 6, color: "#d1d5db" }}
             >
-              GitHub username
+              GitHub gebruikersnaam
             </label>
             <input
               id="username"
@@ -104,7 +110,7 @@ export default function Home() {
               htmlFor="email"
               style={{ display: "block", fontWeight: 600, marginBottom: 6, color: "#d1d5db" }}
             >
-              Email address
+              E-mailadres voor rapport
             </label>
             <input
               id="email"
@@ -112,7 +118,7 @@ export default function Home() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="jan@voorbeeld.nl"
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -146,7 +152,7 @@ export default function Home() {
               transition: "opacity 0.2s",
             }}
           >
-            {status === "scanning" ? "Scanning..." : "Start scan"}
+            {status === "scanning" ? "Bezig met scannen..." : "Start gratis scan"}
           </button>
         </form>
 
@@ -169,25 +175,76 @@ export default function Home() {
         )}
       </div>
 
-      <div style={{ marginTop: 40, fontSize: 14, color: "#9ca3af" }}>
-        <h3 style={{ fontSize: 16, color: "#d1d5db" }}>What we scan</h3>
-        <ul style={{ paddingLeft: 20, lineHeight: 1.8 }}>
-          <li>
-            <strong style={{ color: "#2ea043" }}>Secrets &amp; tokens</strong> — AWS keys, GitHub tokens,
-            private keys, API keys, database URLs, and 20+ more patterns
-          </li>
-          <li>
-            <strong style={{ color: "#2ea043" }}>Dependency vulnerabilities</strong> — known CVEs in npm,
-            PyPI, Go, and Maven packages via OSV.dev
-          </li>
-          <li>
-            <strong style={{ color: "#2ea043" }}>Personal data (PII)</strong> — BSN, IBAN, email, phone
-            numbers, KvK numbers, postal codes (NL-specific)
-          </li>
-        </ul>
-
+      {/* What we scan */}
+      <div style={{ marginTop: 48, fontSize: 14, color: "#9ca3af" }}>
+        <h3 style={{ fontSize: 18, color: "#d1d5db", marginBottom: 16 }}>Wat scannen we?</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+          {[
+            {
+              title: "Secrets & tokens",
+              desc: "AWS-sleutels, GitHub-tokens, privésleutels, API-keys, database-URLs en 20+ andere patronen",
+            },
+            {
+              title: "Kwetsbare dependencies",
+              desc: "Bekende CVEs in npm, PyPI, Go en Maven packages via de OSV.dev kwetsbaarheidsdatabase",
+            },
+            {
+              title: "Persoonsgegevens (PII)",
+              desc: "BSN, IBAN, e-mailadressen, telefoonnummers, KvK-nummers en postcodes (NL-specifiek)",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 8,
+                padding: 16,
+              }}
+            >
+              <h4 style={{ color: "#2ea043", margin: "0 0 8px 0", fontSize: 14 }}>{item.title}</h4>
+              <p style={{ margin: 0, lineHeight: 1.5, fontSize: 13 }}>{item.desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
+      {/* CTA for organizations */}
+      <div
+        style={{
+          marginTop: 48,
+          background: "rgba(46, 160, 67, 0.08)",
+          border: "1px solid rgba(46, 160, 67, 0.2)",
+          borderRadius: 12,
+          padding: 24,
+        }}
+      >
+        <h3 style={{ fontSize: 18, color: "#d1d5db", marginTop: 0, marginBottom: 8 }}>
+          Gemeente, ziekenhuis of overheidsinstelling?
+        </h3>
+        <p style={{ fontSize: 14, color: "#9ca3af", lineHeight: 1.7, marginBottom: 16 }}>
+          Publieke code van overheden en zorginstellingen is extra gevoelig. Wij bieden een
+          <strong style={{ color: "#d1d5db" }}> gratis diepgaande scan</strong> aan voor organisaties
+          in de publieke sector, inclusief maandelijkse rapportage en AI-analyse van bevindingen.
+        </p>
+        <a
+          href="/contact"
+          style={{
+            display: "inline-block",
+            padding: "10px 24px",
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#fff",
+            background: "#2ea043",
+            borderRadius: 8,
+            textDecoration: "none",
+          }}
+        >
+          Neem contact op
+        </a>
+      </div>
+
+      {/* Colofon */}
       <footer
         style={{
           marginTop: 60,
@@ -195,15 +252,23 @@ export default function Home() {
           borderTop: "1px solid rgba(255, 255, 255, 0.1)",
           fontSize: 12,
           color: "#6b7280",
+          lineHeight: 1.8,
         }}
       >
-        Git Guardian &mdash; EUPL-1.2 &mdash;{" "}
-        <a
-          href="https://github.com/rwrw01/Git-Guardian"
-          style={{ color: "#2ea043" }}
-        >
-          Source
-        </a>
+        <p style={{ margin: "0 0 8px 0" }}>
+          <strong style={{ color: "#9ca3af" }}>Git Guardian</strong> is een persoonlijk project van{" "}
+          <strong style={{ color: "#9ca3af" }}>Ralph Wagter</strong>, gratis beschikbaar gesteld aan
+          de community. Aan het gebruik van deze dienst kunnen geen rechten of garanties worden
+          ontleend. De scan is een hulpmiddel &mdash; geen vervanging voor een professionele
+          security audit.
+        </p>
+        <p style={{ margin: 0 }}>
+          Open source onder de{" "}
+          <a href="https://eupl.eu/" style={{ color: "#2ea043" }}>EUPL-1.2</a> licentie &mdash;{" "}
+          <a href="https://github.com/rwrw01/Git-Guardian" style={{ color: "#2ea043" }}>Broncode op GitHub</a>
+          {" "}&mdash;{" "}
+          <a href="/contact" style={{ color: "#2ea043" }}>Contact</a>
+        </p>
       </footer>
     </main>
   );
