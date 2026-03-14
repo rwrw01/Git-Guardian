@@ -12,7 +12,7 @@ import {
   getSubscriber,
   generateUnsubscribeToken,
 } from "../../../src/subscribers";
-import { Redis } from "@upstash/redis";
+import { getRedis } from "../../../src/redis";
 
 // ---------------------------------------------------------------------------
 // One-time scan endpoint — POST /api/scan-once
@@ -38,10 +38,7 @@ export async function POST(request: NextRequest) {
   const { githubUsername, email } = parsed.data;
 
   // Rate limiting: 1 scan per email per hour
-  const redis = new Redis({
-    url: process.env.KV_REST_API_URL!,
-    token: process.env.KV_REST_API_TOKEN!,
-  });
+  const redis = getRedis();
   const rateLimitKey = `ratelimit:scan-once:${email.toLowerCase()}`;
   const existing = await redis.get(rateLimitKey);
 

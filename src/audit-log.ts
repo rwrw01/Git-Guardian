@@ -1,4 +1,4 @@
-import { Redis } from "@upstash/redis";
+import { getRedis } from "./redis";
 
 // ---------------------------------------------------------------------------
 // Audit log — immutable security event log stored in Upstash Redis
@@ -15,18 +15,6 @@ export interface AuditEntry {
 
 const AUDIT_PREFIX = "audit:";
 const AUDIT_INDEX = "audit:index";
-
-let redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.KV_REST_API_URL!,
-      token: process.env.KV_REST_API_TOKEN!,
-    });
-  }
-  return redis;
-}
 
 /**
  * Write an immutable audit log entry.

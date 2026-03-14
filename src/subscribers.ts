@@ -1,6 +1,7 @@
-import { Redis } from "@upstash/redis";
 import type { Subscriber } from "./types";
 import { createHmac } from "crypto";
+
+import { getRedis } from "./redis";
 
 // ---------------------------------------------------------------------------
 // Subscriber datastore — Upstash Redis
@@ -11,18 +12,6 @@ const PREFIX = "subscriber:";
 
 function key(username: string): string {
   return `${PREFIX}${username.toLowerCase()}`;
-}
-
-let redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.KV_REST_API_URL!,
-      token: process.env.KV_REST_API_TOKEN!,
-    });
-  }
-  return redis;
 }
 
 // ---------------------------------------------------------------------------

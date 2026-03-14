@@ -1,5 +1,6 @@
-import { Redis } from "@upstash/redis";
 import type { ScanReport } from "./types";
+
+import { getRedis } from "./redis";
 
 // ---------------------------------------------------------------------------
 // Scan history store — persists scan reports for the admin dashboard
@@ -8,18 +9,6 @@ import type { ScanReport } from "./types";
 const SCAN_PREFIX = "scan:";
 const SCAN_INDEX = "scan:index";
 const FP_PREFIX = "fp:"; // false positive markers
-
-let redis: Redis | null = null;
-
-function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.KV_REST_API_URL!,
-      token: process.env.KV_REST_API_TOKEN!,
-    });
-  }
-  return redis;
-}
 
 // ---------------------------------------------------------------------------
 // Scan reports
