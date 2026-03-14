@@ -287,6 +287,119 @@ export const PII_SKIP_CONTEXT = [
 export const KVK_KEYWORDS = [/kvk/i, /kamer\s*van\s*koophandel/i, /chamber/i];
 
 // ---------------------------------------------------------------------------
+// Placeholder & false positive detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Placeholder email domains — addresses at these domains are never real PII.
+ * Based on RFC 2606 reserved domains + common documentation patterns.
+ */
+export const PLACEHOLDER_EMAIL_DOMAINS = [
+  "example.com",
+  "example.org",
+  "example.net",
+  "yourdomain.com",
+  "yourdomain.nl",
+  "your-domain.com",
+  "domain.com",
+  "domain.nl",
+  "email.com",
+  "company.com",
+  "organization.org",
+  "test.com",
+  "test.local",
+  "localhost",
+  "invalid",
+  "saa.local",
+];
+
+/**
+ * Detect if a string is a placeholder/example value rather than a real secret.
+ * Checks for: repeated characters, sequential patterns, x-fill, obvious dummies.
+ * Inspired by TruffleHog's allowlist and Yelp detect-secrets' filters.
+ */
+export function isPlaceholderValue(value: string): boolean {
+  const lower = value.toLowerCase();
+
+  // Repeated single character: aaaaaaa, xxxxxxx, 0000000
+  if (/^(.)\1{5,}$/.test(lower)) return true;
+
+  // Mostly x's or *'s (placeholder fill): ghp_xxxxxxxxxxxx, ****
+  const xCount = (lower.match(/x/g) ?? []).length;
+  if (value.length > 6 && xCount / value.length > 0.5) return true;
+  if (/\*{3,}/.test(value)) return true;
+
+  // Common placeholder words
+  const placeholders = [
+    "your-",
+    "your_",
+    "replace",
+    "insert",
+    "changeme",
+    "fixme",
+    "todo",
+    "placeholder",
+    "dummy",
+    "fake",
+    "sample",
+    "example",
+    "test-",
+    "test_",
+  ];
+  if (placeholders.some((p) => lower.includes(p))) return true;
+
+  // "here" suffix pattern: "put-your-token-here", "openai-key-here"
+  if (lower.endsWith("here")) return true;
+
+  // Stripe/service test keys (sk_test_, pk_test_)
+  if (/^[sp]k_test_/i.test(value)) return true;
+
+  // AWS test key pattern
+  if (value === "AKIA00000000000000000" || /^AKIA0{16}$/.test(value)) return true;
+
+  return false;
+}
+
+/**
+ * Detect if a line is inside a markdown code block example or documentation
+ * context that typically contains placeholder values.
+ */
+export function isDocumentationContext(
+  lines: string[],
+  lineIndex: number,
+  filePath: string,
+): boolean {
+  // Markdown files: check if inside a fenced code block (```...```)
+  if (/\.(md|mdx)$/i.test(filePath)) {
+    let inCodeBlock = false;
+    for (let i = 0; i <= lineIndex; i++) {
+      if (/^```/.test(lines[i].trim())) {
+        inCodeBlock = !inCodeBlock;
+      }
+    }
+    if (inCodeBlock) return true;
+  }
+
+  // Lines with "e.g.", "for example", "such as" are documentation
+  const line = lines[lineIndex];
+  if (/\b(e\.g\.|for example|such as|bijv\.|zoals)\b/i.test(line)) return true;
+
+  // Comment lines with example indicators
+  if (/^\s*(#|\/\/)\s*(example|voorbeeld|e\.g\.|sample)/i.test(line)) return true;
+
+  return false;
+}
+
+/**
+ * Check if an email address is a placeholder/example.
+ */
+export function isPlaceholderEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return false;
+  return PLACEHOLDER_EMAIL_DOMAINS.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
+// ---------------------------------------------------------------------------
 // Max file size for scanning (1 MB)
 // ---------------------------------------------------------------------------
 

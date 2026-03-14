@@ -1,6 +1,11 @@
 import type { Finding, ScanResult } from "./types";
 import { Severity, Category } from "./types";
-import { SECRET_PATTERNS, SKIP_SECRET_FILE_PATTERNS } from "./patterns";
+import {
+  SECRET_PATTERNS,
+  SKIP_SECRET_FILE_PATTERNS,
+  isPlaceholderValue,
+  isDocumentationContext,
+} from "./patterns";
 
 // ---------------------------------------------------------------------------
 // Shannon entropy
@@ -51,6 +56,12 @@ export function scanFileForSecrets(
       if (!match) continue;
 
       const matchedValue = match[1] ?? match[0];
+
+      // Skip placeholder/example values (xxxx, your-token-here, etc.)
+      if (isPlaceholderValue(matchedValue)) continue;
+
+      // Skip secrets inside markdown code block examples
+      if (isDocumentationContext(lines, i, filePath)) continue;
 
       // For generic patterns, require minimum entropy to reduce false positives
       if (

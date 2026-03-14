@@ -1,6 +1,12 @@
 import type { Finding, ScanResult } from "./types";
 import { Category } from "./types";
-import { PII_PATTERNS, PII_SKIP_CONTEXT, KVK_KEYWORDS } from "./patterns";
+import {
+  PII_PATTERNS,
+  PII_SKIP_CONTEXT,
+  KVK_KEYWORDS,
+  isPlaceholderEmail,
+  isDocumentationContext,
+} from "./patterns";
 
 // ---------------------------------------------------------------------------
 // Scan a single file for PII
@@ -33,6 +39,12 @@ export function scanFileForPii(
 
       // Run checksum validation if available
       if (pattern.validate && !pattern.validate(matchedValue)) continue;
+
+      // Skip placeholder emails (example.com, yourdomain.com, etc.)
+      if (pattern.id === "email" && isPlaceholderEmail(matchedValue)) continue;
+
+      // Skip PII inside markdown code block examples
+      if (isDocumentationContext(lines, i, filePath)) continue;
 
       // KvK: only flag when near keywords (too many false positives otherwise)
       if (pattern.id === "kvk") {
