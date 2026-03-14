@@ -39,11 +39,15 @@ async function ghFetch<T>(path: string): Promise<T> {
     }
   }
 
-  // Handle 403 rate limit: wait and retry once
+  // Handle 403 rate limit: wait and retry, or report reset time
   if (res.status === 403 && resetAt) {
-    const waitMs = Math.max(0, parseInt(resetAt, 10) * 1000 - Date.now()) + 1000;
-    if (waitMs < 120_000) {
-      console.warn(`[github] 403 rate limited on ${path}, waiting ${Math.round(waitMs / 1000)}s`);
+    const resetTime = parseInt(resetAt, 10) * 1000;
+    const waitMs = Math.max(0, resetTime - Date.now()) + 1000;
+    const waitMin = Math.ceil(waitMs / 60_000);
+
+    // For admin scans: wait up to 15 minutes
+    if (waitMs < 900_000) {
+      console.warn(`[github] 403 rate limited on ${path}, waiting ${waitMin} min for reset`);
       await new Promise((resolve) => setTimeout(resolve, waitMs));
       const retry = await fetch(`${GITHUB_API}${path}`, { headers: headers() });
       if (!retry.ok) {
@@ -52,6 +56,11 @@ async function ghFetch<T>(path: string): Promise<T> {
       }
       return retry.json() as Promise<T>;
     }
+
+    // Too long to wait — give clear error with reset time
+    const resetDate = new Date(resetTime);
+    const resetStr = resetDate.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" });
+    throw new Error(`GitHub API rate limit bereikt. Reset om ${resetStr} (over ${waitMin} min). Probeer het later opnieuw.`);
   }
 
   if (!res.ok) {
