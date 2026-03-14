@@ -10,7 +10,7 @@ export default async function AdminLayout({
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/admin/login");
+    redirect("/login");
   }
 
   const username = (session.user as Record<string, unknown>).githubUsername as string ?? session.user.email ?? "";

@@ -10,6 +10,7 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: "#1e1e1e",
       }}
     >
       <div
