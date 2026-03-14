@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
   <tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>Naam</strong></td><td>${escapeHtml(body.name)}</td></tr>
   <tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>E-mail</strong></td><td><a href="mailto:${escapeHtml(body.email)}">${escapeHtml(body.email)}</a></td></tr>
   ${body.organisation ? `<tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>Organisatie</strong></td><td>${escapeHtml(body.organisation)}</td></tr>` : ""}
+  ${body.githubOrg ? `<tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>GitHub</strong></td><td><a href="https://github.com/${escapeHtml(body.githubOrg)}">${escapeHtml(body.githubOrg)}</a></td></tr>` : ""}
 </table>
 <h3>Bericht</h3>
 <p style="white-space:pre-wrap;">${escapeHtml(body.message)}</p>

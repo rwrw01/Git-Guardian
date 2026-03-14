@@ -8,6 +8,7 @@ export default function ContactPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [organisation, setOrganisation] = useState("");
+  const [githubOrg, setGithubOrg] = useState("");
   const [messageText, setMessageText] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [feedback, setFeedback] = useState("");
@@ -21,7 +22,7 @@ export default function ContactPage() {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, organisation, message: messageText }),
+        body: JSON.stringify({ name, email, organisation, githubOrg, message: messageText }),
       });
 
       if (res.ok) {
@@ -119,6 +120,20 @@ export default function ContactPage() {
               value={organisation}
               onChange={(e) => setOrganisation(e.target.value)}
               placeholder="Gemeente Amsterdam"
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="github-org" style={{ display: "block", fontWeight: 600, marginBottom: 6, color: "#d1d5db" }}>
+              GitHub user / organisatienaam
+            </label>
+            <input
+              id="github-org"
+              type="text"
+              value={githubOrg}
+              onChange={(e) => setGithubOrg(e.target.value)}
+              placeholder="gemeente-amsterdam"
               style={inputStyle}
             />
           </div>
