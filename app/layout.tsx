@@ -18,8 +18,9 @@ export default function RootLayout({
           margin: 0,
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          backgroundColor: "#f9fafb",
-          color: "#1f2937",
+          background: "linear-gradient(135deg, #1a2332 0%, #1e3a2f 50%, #2ea043 100%)",
+          color: "#e5e7eb",
+          minHeight: "100vh",
         }}
       >
         {children}
