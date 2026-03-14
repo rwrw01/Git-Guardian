@@ -9,30 +9,43 @@ const SEVERITY_COLORS: Record<string, string> = {
   LOW: "#3794ff",
 };
 
+interface Finding {
+  severity: string;
+  category: string;
+  repo: string;
+  file: string;
+  line: number;
+  description: string;
+  impact: string;
+  fix: string;
+  reference: string;
+  maskedValue?: string;
+}
+
 interface ScanReport {
   id: string;
   githubUsername: string;
   scannedAt: string;
   totalRepos: number;
-  findings: Array<{
-    severity: string;
-    category: string;
-    repo: string;
-    file: string;
-    line: number;
-    description: string;
-    impact: string;
-    fix: string;
-    reference: string;
-    maskedValue?: string;
-  }>;
+  findings: Finding[];
   maturity: { secrets: number; dependencies: number; pii: number };
+  deepseekAnalysis?: string | null;
+  reportType?: "delta" | "full";
+  previousFindingsCount?: number;
+}
+
+function findingHash(repo: string, file: string, description: string): string {
+  // Match server-side hash: base64url of "repo:file:description", first 32 chars
+  const str = `${repo}:${file}:${description}`;
+  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").slice(0, 32);
 }
 
 export default function ScansPage() {
   const [reports, setReports] = useState<ScanReport[]>([]);
   const [selected, setSelected] = useState<ScanReport | null>(null);
   const [total, setTotal] = useState(0);
+  const [fpMessage, setFpMessage] = useState("");
+  const [markedFps, setMarkedFps] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/admin/scans?limit=50")
@@ -41,10 +54,45 @@ export default function ScansPage() {
         setReports(data.reports ?? []);
         setTotal(data.total ?? 0);
       });
+    // Load existing FPs
+    fetch("/api/admin/false-positives")
+      .then((r) => r.json())
+      .then((data) => {
+        const hashes = (data.falsePositives ?? []).map((fp: { findingHash: string }) => fp.findingHash);
+        setMarkedFps(new Set(hashes));
+      });
   }, []);
 
   function exportReport(id: string, format: string) {
     window.open(`/api/admin/export?id=${encodeURIComponent(id)}&format=${format}`, "_blank");
+  }
+
+  async function markAsFp(f: Finding) {
+    const reason = prompt("Reden voor false positive:");
+    if (!reason) return;
+
+    const hash = findingHash(f.repo, f.file, f.description);
+    const res = await fetch("/api/admin/false-positives", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        findingHash: hash,
+        repo: f.repo,
+        file: f.file,
+        pattern: f.description,
+        reason,
+      }),
+    });
+
+    if (res.ok) {
+      setMarkedFps((prev) => new Set([...prev, hash]));
+      setFpMessage(`"${f.description}" in ${f.file} gemarkeerd als false positive`);
+      setTimeout(() => setFpMessage(""), 5000);
+    }
+  }
+
+  function isFp(f: Finding): boolean {
+    return markedFps.has(findingHash(f.repo, f.file, f.description));
   }
 
   return (
@@ -54,12 +102,18 @@ export default function ScansPage() {
         <span style={{ fontSize: 12, color: "#858585", marginLeft: 12 }}>{total} total</span>
       </h1>
 
+      {fpMessage && (
+        <div style={{ background: "#252526", border: "1px solid #6a9955", borderRadius: 4, padding: "8px 16px", marginBottom: 16, fontSize: 12, color: "#6a9955" }}>
+          {fpMessage}
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 16 }}>
         {/* Report list */}
         <div style={{ width: 340, flexShrink: 0 }}>
-          <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4 }}>
+          <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, maxHeight: "80vh", overflow: "auto" }}>
             {reports.length === 0 ? (
-              <p style={{ color: "#858585", fontSize: 13, padding: 20, textAlign: "center" }}>No scan reports yet.</p>
+              <p style={{ color: "#858585", fontSize: 13, padding: 20, textAlign: "center" }}>Nog geen scanrapporten.</p>
             ) : (
               reports.map((r) => (
                 <div
@@ -83,6 +137,9 @@ export default function ScansPage() {
                     {r.findings.some((f) => f.severity === "CRITICAL") && (
                       <span style={{ color: "#f44747", marginLeft: 8 }}>CRITICAL</span>
                     )}
+                    {r.reportType === "delta" && (
+                      <span style={{ color: "#3794ff", marginLeft: 8 }}>DELTA</span>
+                    )}
                   </div>
                 </div>
               ))
@@ -94,7 +151,7 @@ export default function ScansPage() {
         <div style={{ flex: 1 }}>
           {!selected ? (
             <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 40, textAlign: "center" }}>
-              <p style={{ color: "#858585", fontSize: 13 }}>Select a scan report to view details.</p>
+              <p style={{ color: "#858585", fontSize: 13 }}>Selecteer een scanrapport om details te bekijken.</p>
             </div>
           ) : (
             <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20 }}>
@@ -105,48 +162,93 @@ export default function ScansPage() {
                   </h2>
                   <p style={{ fontSize: 12, color: "#858585", margin: "4px 0 0" }}>
                     {selected.totalRepos} repos — Maturity: secrets {selected.maturity.secrets}/5, deps {selected.maturity.dependencies}/5, pii {selected.maturity.pii}/5
+                    {selected.reportType === "delta" && selected.previousFindingsCount ? ` — ${selected.previousFindingsCount} eerder gemeld` : ""}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 4 }}>
                   <button onClick={() => exportReport(selected.id, "json")} style={{ padding: "4px 10px", fontSize: 11, background: "#3c3c3c", color: "#ccc", border: "none", borderRadius: 2, cursor: "pointer" }}>
-                    Export JSON
+                    JSON
                   </button>
                   <button onClick={() => exportReport(selected.id, "html")} style={{ padding: "4px 10px", fontSize: 11, background: "#3c3c3c", color: "#ccc", border: "none", borderRadius: 2, cursor: "pointer" }}>
-                    Export HTML
+                    HTML
                   </button>
                 </div>
               </div>
+
+              {/* DeepSeek analysis */}
+              {selected.deepseekAnalysis && (
+                <div style={{ marginBottom: 16, background: "#1e1e1e", borderRadius: 4, padding: 12 }}>
+                  <h3 style={{ fontSize: 12, color: "#858585", fontWeight: 600, marginTop: 0, marginBottom: 8, textTransform: "uppercase" }}>AI-analyse (DeepSeek)</h3>
+                  <div style={{ fontSize: 12, color: "#cccccc", whiteSpace: "pre-wrap", lineHeight: 1.6, maxHeight: 200, overflow: "auto" }}>
+                    {selected.deepseekAnalysis}
+                  </div>
+                </div>
+              )}
 
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
                     <th style={{ padding: "6px 8px", fontWeight: 600 }}>Severity</th>
                     <th style={{ padding: "6px 8px", fontWeight: 600 }}>Type</th>
+                    <th style={{ padding: "6px 8px", fontWeight: 600 }}>Repo</th>
                     <th style={{ padding: "6px 8px", fontWeight: 600 }}>File</th>
-                    <th style={{ padding: "6px 8px", fontWeight: 600 }}>Line</th>
                     <th style={{ padding: "6px 8px", fontWeight: 600 }}>Description</th>
-                    <th style={{ padding: "6px 8px", fontWeight: 600 }}>Fix</th>
+                    <th style={{ padding: "6px 8px", fontWeight: 600 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {selected.findings.map((f, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #2d2d2d" }}>
-                      <td style={{ padding: "6px 8px" }}>
-                        <span style={{ color: SEVERITY_COLORS[f.severity] ?? "#ccc", fontWeight: 600, fontSize: 11 }}>
-                          {f.severity}
-                        </span>
-                      </td>
-                      <td style={{ padding: "6px 8px", color: "#9cdcfe" }}>{f.category}</td>
-                      <td style={{ padding: "6px 8px", color: "#ce9178", fontFamily: "monospace", fontSize: 11 }}>{f.file}</td>
-                      <td style={{ padding: "6px 8px", color: "#b5cea8", fontFamily: "monospace" }}>{f.line}</td>
-                      <td style={{ padding: "6px 8px", color: "#cccccc" }}>{f.description}</td>
-                      <td style={{ padding: "6px 8px", color: "#6a9955", fontSize: 11 }}>{f.fix}</td>
-                    </tr>
-                  ))}
+                  {selected.findings.map((f, i) => {
+                    const fp = isFp(f);
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid #2d2d2d", opacity: fp ? 0.4 : 1 }}>
+                        <td style={{ padding: "6px 8px" }}>
+                          <span style={{ color: SEVERITY_COLORS[f.severity] ?? "#ccc", fontWeight: 600, fontSize: 11 }}>
+                            {f.severity}
+                          </span>
+                        </td>
+                        <td style={{ padding: "6px 8px", color: "#9cdcfe" }}>{f.category}</td>
+                        <td style={{ padding: "6px 8px", color: "#dcdcaa", fontFamily: "monospace", fontSize: 11 }}>
+                          {f.repo.split("/")[1]}
+                        </td>
+                        <td style={{ padding: "6px 8px", color: "#ce9178", fontFamily: "monospace", fontSize: 11 }}>
+                          {f.file}:{f.line}
+                        </td>
+                        <td style={{ padding: "6px 8px", color: "#cccccc" }}>
+                          {f.description}
+                          {f.maskedValue && (
+                            <span style={{ marginLeft: 6, fontSize: 10, color: "#6b7280", fontFamily: "monospace" }}>
+                              {f.maskedValue}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "6px 8px" }}>
+                          {fp ? (
+                            <span style={{ fontSize: 10, color: "#858585" }}>FP</span>
+                          ) : (
+                            <button
+                              onClick={() => markAsFp(f)}
+                              title="Markeer als false positive"
+                              style={{
+                                padding: "2px 6px",
+                                fontSize: 10,
+                                background: "transparent",
+                                border: "1px solid #555",
+                                color: "#858585",
+                                borderRadius: 2,
+                                cursor: "pointer",
+                              }}
+                            >
+                              FP
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               {selected.findings.length === 0 && (
-                <p style={{ color: "#6a9955", fontSize: 13, textAlign: "center", padding: 20 }}>Clean scan — no findings.</p>
+                <p style={{ color: "#6a9955", fontSize: 13, textAlign: "center", padding: 20 }}>Schone scan — geen bevindingen.</p>
               )}
             </div>
           )}
