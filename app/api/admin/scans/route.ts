@@ -33,9 +33,11 @@ export async function GET(request: NextRequest) {
 
   // Config endpoint
   if (searchParams.get("config") === "true") {
+    const scanFrequency = await getConfig("scan-frequency", "daily");
     const scanHourUtc = await getConfig("scan-hour-utc", 6);
+    const scanDayOfWeek = await getConfig("scan-day-of-week", 1);
     const fullReportDay = await getConfig("full-report-day", 1);
-    return NextResponse.json({ scanHourUtc, fullReportDay });
+    return NextResponse.json({ scanFrequency, scanHourUtc, scanDayOfWeek, fullReportDay });
   }
 
   const id = searchParams.get("id");
@@ -72,14 +74,20 @@ export async function PUT(request: NextRequest) {
 
   const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
 
+  if (["daily", "weekly", "monthly"].includes(body.scanFrequency)) {
+    await setConfig("scan-frequency", body.scanFrequency);
+  }
   if (typeof body.scanHourUtc === "number" && body.scanHourUtc >= 0 && body.scanHourUtc <= 23) {
     await setConfig("scan-hour-utc", body.scanHourUtc);
+  }
+  if (typeof body.scanDayOfWeek === "number" && body.scanDayOfWeek >= 0 && body.scanDayOfWeek <= 28) {
+    await setConfig("scan-day-of-week", body.scanDayOfWeek);
   }
   if (typeof body.fullReportDay === "number" && body.fullReportDay >= 1 && body.fullReportDay <= 28) {
     await setConfig("full-report-day", body.fullReportDay);
   }
 
-  await logAudit(actor, "CONFIG_UPDATE", "scan-settings", `Updated: hour=${body.scanHourUtc}, fullReportDay=${body.fullReportDay}`);
+  await logAudit(actor, "CONFIG_UPDATE", "scan-settings", `Updated: freq=${body.scanFrequency}, hour=${body.scanHourUtc}, day=${body.scanDayOfWeek}, fullReport=${body.fullReportDay}`);
 
   return NextResponse.json({ ok: true });
 }

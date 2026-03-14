@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/scan",
-      "schedule": "0 6 * * *"
+      "schedule": "0 * * * *"
     }
   ],
   "functions": {

@@ -94,6 +94,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Check if this is the right time to scan based on configured frequency
+  const now = new Date();
+  const scanFrequency = await getConfig("scan-frequency", "daily");
+  const scanHourUtc = await getConfig("scan-hour-utc", 6);
+  const scanDayOfWeek = await getConfig("scan-day-of-week", 1);
+
+  if (now.getUTCHours() !== scanHourUtc) {
+    return NextResponse.json({ message: "Not scan hour", skipped: true });
+  }
+
+  if (scanFrequency === "weekly" && now.getUTCDay() !== scanDayOfWeek) {
+    return NextResponse.json({ message: "Not scan day (weekly)", skipped: true });
+  }
+
+  if (scanFrequency === "monthly" && now.getUTCDate() !== scanDayOfWeek) {
+    return NextResponse.json({ message: "Not scan day (monthly)", skipped: true });
+  }
+
   try {
     const subscribers = await listSubscribers();
 

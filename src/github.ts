@@ -7,12 +7,14 @@ import { SKIP_FILE_PATTERNS, MAX_FILE_SIZE } from "./patterns";
 
 const GITHUB_API = "https://api.github.com";
 
+let useUnauthenticated = false;
+
 function headers(): HeadersInit {
   const h: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
     "User-Agent": "Git-Guardian/0.1",
   };
-  if (process.env.GITHUB_TOKEN) {
+  if (process.env.GITHUB_TOKEN && !useUnauthenticated) {
     h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
   return h;
@@ -57,7 +59,18 @@ async function ghFetch<T>(path: string): Promise<T> {
       return retry.json() as Promise<T>;
     }
 
-    // Too long to wait — give clear error with reset time
+    // Too long to wait — try unauthenticated API as fallback (separate 60 req/hr pool)
+    if (!useUnauthenticated && process.env.GITHUB_TOKEN) {
+      console.warn(`[github] Switching to unauthenticated API (60 req/hr fallback)`);
+      useUnauthenticated = true;
+      const retry = await fetch(`${GITHUB_API}${path}`, { headers: headers() });
+      if (retry.ok) {
+        return retry.json() as Promise<T>;
+      }
+      // If unauthenticated also fails, give clear error
+      useUnauthenticated = false;
+    }
+
     const resetDate = new Date(resetTime);
     const resetStr = resetDate.toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam" });
     throw new Error(`GitHub API rate limit bereikt. Reset om ${resetStr} (over ${waitMin} min). Probeer het later opnieuw.`);

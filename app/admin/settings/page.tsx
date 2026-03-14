@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 
 interface Config {
+  scanFrequency: "daily" | "weekly" | "monthly";
   scanHourUtc: number;
+  scanDayOfWeek: number; // 0=Sun, 1=Mon, ... 6=Sat
   fullReportDay: number;
 }
 
 export default function SettingsPage() {
-  const [config, setConfig] = useState<Config>({ scanHourUtc: 6, fullReportDay: 1 });
+  const [config, setConfig] = useState<Config>({ scanFrequency: "daily", scanHourUtc: 6, scanDayOfWeek: 1, fullReportDay: 1 });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -17,7 +19,12 @@ export default function SettingsPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.scanHourUtc !== undefined) {
-          setConfig({ scanHourUtc: data.scanHourUtc, fullReportDay: data.fullReportDay ?? 1 });
+          setConfig({
+            scanFrequency: data.scanFrequency ?? "daily",
+            scanHourUtc: data.scanHourUtc,
+            scanDayOfWeek: data.scanDayOfWeek ?? 1,
+            fullReportDay: data.fullReportDay ?? 1,
+          });
         }
       })
       .catch(() => {});
@@ -69,7 +76,21 @@ export default function SettingsPage() {
         <table style={{ fontSize: 13, color: "#cccccc", borderCollapse: "collapse" }}>
           <tbody>
             <tr>
-              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Dagelijkse scan (UTC)</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Scan frequentie</td>
+              <td>
+                <select
+                  value={config.scanFrequency}
+                  onChange={(e) => setConfig({ ...config, scanFrequency: e.target.value as Config["scanFrequency"] })}
+                  style={{ ...inputStyle, width: 120 }}
+                >
+                  <option value="daily">Dagelijks</option>
+                  <option value="weekly">Wekelijks</option>
+                  <option value="monthly">Maandelijks</option>
+                </select>
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Tijdstip (UTC)</td>
               <td>
                 <select
                   value={config.scanHourUtc}
@@ -86,6 +107,38 @@ export default function SettingsPage() {
                 </span>
               </td>
             </tr>
+            {config.scanFrequency === "weekly" && (
+              <tr>
+                <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Dag van de week</td>
+                <td>
+                  <select
+                    value={config.scanDayOfWeek}
+                    onChange={(e) => setConfig({ ...config, scanDayOfWeek: parseInt(e.target.value, 10) })}
+                    style={{ ...inputStyle, width: 120 }}
+                  >
+                    {["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"].map((day, i) => (
+                      <option key={i} value={i}>{day}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            )}
+            {config.scanFrequency === "monthly" && (
+              <tr>
+                <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Dag van de maand</td>
+                <td>
+                  <select
+                    value={config.scanDayOfWeek}
+                    onChange={(e) => setConfig({ ...config, scanDayOfWeek: parseInt(e.target.value, 10) })}
+                    style={{ ...inputStyle, width: 80 }}
+                  >
+                    {Array.from({ length: 28 }, (_, d) => (
+                      <option key={d + 1} value={d + 1}>{`${d + 1}e`}</option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            )}
             <tr>
               <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Volledig rapport op dag</td>
               <td>
