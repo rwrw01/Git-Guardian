@@ -16,6 +16,7 @@ export default function SubscribersPage() {
   const [newUsername, setNewUsername] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [message, setMessage] = useState("");
+  const [scanningUser, setScanningUser] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/subscribers");
@@ -48,6 +49,28 @@ export default function SubscribersPage() {
     });
     setMessage(`Removed ${username}`);
     load();
+  }
+
+  async function scanNow(username: string) {
+    setScanningUser(username);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/scans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ githubUsername: username, sendEmail: true }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setMessage(`Scan ${username}: ${result.findings} findings in ${result.repos} repos — rapport verstuurd`);
+        load();
+      } else {
+        setMessage(`Scan ${username} mislukt: ${result.message ?? result.error}`);
+      }
+    } catch {
+      setMessage(`Scan ${username}: netwerkfout`);
+    }
+    setScanningUser(null);
   }
 
   return (
@@ -106,7 +129,22 @@ export default function SubscribersPage() {
                     <span style={{ color: "#858585", fontSize: 11 }}>SUBSCRIBER</span>
                   )}
                 </td>
-                <td style={{ padding: "6px 8px" }}>
+                <td style={{ padding: "6px 8px", display: "flex", gap: 4 }}>
+                  <button
+                    onClick={() => scanNow(s.githubUsername)}
+                    disabled={scanningUser === s.githubUsername}
+                    style={{
+                      padding: "2px 8px",
+                      fontSize: 11,
+                      background: scanningUser === s.githubUsername ? "#3c3c3c" : "#2ea043",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 2,
+                      cursor: scanningUser === s.githubUsername ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {scanningUser === s.githubUsername ? "Scanning..." : "Nu scannen"}
+                  </button>
                   {!s.isOwner && (
                     <button
                       onClick={() => removeSub(s.githubUsername)}
