@@ -14,7 +14,6 @@ const SEVERITY_ORDER: Record<string, number> = {
 
 // ---------------------------------------------------------------------------
 // Maturity scoring: 1 (absent) — 5 (best practice)
-// Based on finding count and severity
 // ---------------------------------------------------------------------------
 
 function maturityScore(findings: Finding[], category: Category): number {
@@ -55,7 +54,7 @@ export function buildReport(
 }
 
 // ---------------------------------------------------------------------------
-// Render report to HTML (Dutch, per CLAUDE.md)
+// HTML rendering helpers
 // ---------------------------------------------------------------------------
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -66,42 +65,131 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const MATURITY_LABELS = ["", "Afwezig", "Minimaal", "Basis", "Goed", "Best practice"];
+const MATURITY_COLORS = ["", "#DC2626", "#EA580C", "#CA8A04", "#65a30d", "#16a34a"];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  [Category.SECRET]: "Secrets & Tokens",
+  [Category.DEPENDENCY]: "Dependency CVEs",
+  [Category.PII]: "Persoonsgegevens (PII)",
+};
+
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  [Category.SECRET]: "API keys, tokens, wachtwoorden, private keys, database URLs (20+ patronen + entropy analyse)",
+  [Category.DEPENDENCY]: "Bekende kwetsbaarheden (CVEs) in npm, PyPI, Go en Maven packages via OSV.dev",
+  [Category.PII]: "BSN (elfproef), IBAN (mod-97), e-mailadressen, telefoonnummers, KvK-nummers, postcodes (NL-specifiek)",
+};
 
 function severityBadge(severity: Severity): string {
   const color = SEVERITY_COLORS[severity];
   return `<span style="background:${color};color:#fff;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold;">${severity}</span>`;
 }
 
-function findingsTable(findings: Finding[]): string {
-  if (findings.length === 0) return "<p>Geen bevindingen.</p>";
+function countBySeverity(findings: Finding[], severity: Severity): number {
+  return findings.filter((f) => f.severity === severity).length;
+}
 
-  const rows = findings
-    .map(
-      (f) => `<tr>
-      <td>${severityBadge(f.severity)}</td>
-      <td>${f.category}</td>
-      <td><code>${f.repo}</code></td>
-      <td><code>${f.file}:${f.line}</code></td>
-      <td>${f.description}${f.maskedValue ? `<br><code style="font-size:12px;color:#6b7280;">${f.maskedValue}</code>` : ""}</td>
-      <td>${f.fix}</td>
-    </tr>`,
-    )
+// ---------------------------------------------------------------------------
+// Scan overview table — one row per scan type with severity counts
+// ---------------------------------------------------------------------------
+
+function scanOverviewTable(findings: Finding[]): string {
+  const categories = [Category.SECRET, Category.DEPENDENCY, Category.PII];
+
+  const rows = categories
+    .map((cat) => {
+      const catFindings = findings.filter((f) => f.category === cat);
+      const c = countBySeverity(catFindings, Severity.CRITICAL);
+      const h = countBySeverity(catFindings, Severity.HIGH);
+      const m = countBySeverity(catFindings, Severity.MEDIUM);
+      const l = countBySeverity(catFindings, Severity.LOW);
+      const total = catFindings.length;
+      const worst = c > 0 ? Severity.CRITICAL : h > 0 ? Severity.HIGH : m > 0 ? Severity.MEDIUM : total > 0 ? Severity.LOW : null;
+
+      return `<tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:10px 12px;font-weight:600;">${CATEGORY_LABELS[cat]}</td>
+        <td style="padding:10px 8px;font-size:12px;color:#6b7280;">${CATEGORY_DESCRIPTIONS[cat]}</td>
+        <td style="padding:10px 8px;text-align:center;">${c > 0 ? severityBadge(Severity.CRITICAL) + ` ${c}` : "—"}</td>
+        <td style="padding:10px 8px;text-align:center;">${h > 0 ? severityBadge(Severity.HIGH) + ` ${h}` : "—"}</td>
+        <td style="padding:10px 8px;text-align:center;">${m > 0 ? severityBadge(Severity.MEDIUM) + ` ${m}` : "—"}</td>
+        <td style="padding:10px 8px;text-align:center;">${l > 0 ? `${l}` : "—"}</td>
+        <td style="padding:10px 8px;text-align:center;font-weight:bold;">${total}</td>
+        <td style="padding:10px 8px;text-align:center;">${worst ? severityBadge(worst) : '<span style="color:#16a34a;font-weight:bold;">CLEAN</span>'}</td>
+      </tr>`;
+    })
     .join("\n");
 
-  return `<table style="width:100%;border-collapse:collapse;font-size:14px;">
+  return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead>
-      <tr style="border-bottom:2px solid #e5e7eb;text-align:left;">
-        <th style="padding:8px;">Ernst</th>
-        <th style="padding:8px;">Type</th>
-        <th style="padding:8px;">Repository</th>
-        <th style="padding:8px;">Locatie</th>
-        <th style="padding:8px;">Beschrijving</th>
-        <th style="padding:8px;">Actie</th>
+      <tr style="border-bottom:2px solid #1f2937;text-align:left;">
+        <th style="padding:8px 12px;">Scan</th>
+        <th style="padding:8px;">Wat wordt getest</th>
+        <th style="padding:8px;text-align:center;">Critical</th>
+        <th style="padding:8px;text-align:center;">High</th>
+        <th style="padding:8px;text-align:center;">Medium</th>
+        <th style="padding:8px;text-align:center;">Low</th>
+        <th style="padding:8px;text-align:center;">Totaal</th>
+        <th style="padding:8px;text-align:center;">Status</th>
       </tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
+
+// ---------------------------------------------------------------------------
+// Findings table per category, grouped by repo
+// ---------------------------------------------------------------------------
+
+function findingsByCategory(findings: Finding[], category: Category): string {
+  const catFindings = findings.filter((f) => f.category === category);
+  if (catFindings.length === 0) return "";
+
+  // Group by repo
+  const byRepo = new Map<string, Finding[]>();
+  for (const f of catFindings) {
+    const existing = byRepo.get(f.repo) ?? [];
+    existing.push(f);
+    byRepo.set(f.repo, existing);
+  }
+
+  let html = `<h2 style="margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;">${CATEGORY_LABELS[category]}</h2>`;
+
+  for (const [repo, repoFindings] of byRepo) {
+    const repoShort = repo.split("/").pop() ?? repo;
+    html += `<h3 style="margin-top:16px;margin-bottom:8px;">
+      <code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:14px;">${repoShort}</code>
+      <span style="font-size:12px;color:#6b7280;font-weight:normal;margin-left:8px;">${repo} — ${repoFindings.length} bevinding${repoFindings.length !== 1 ? "en" : ""}</span>
+    </h3>`;
+
+    const rows = repoFindings
+      .map(
+        (f) => `<tr style="border-bottom:1px solid #f3f4f6;">
+        <td style="padding:6px 8px;">${severityBadge(f.severity)}</td>
+        <td style="padding:6px 8px;"><code style="font-size:12px;">${f.file}${f.line ? `:${f.line}` : ""}</code></td>
+        <td style="padding:6px 8px;">${f.description}${f.maskedValue ? `<br><code style="font-size:11px;color:#6b7280;background:#f9fafb;padding:1px 4px;border-radius:2px;">${f.maskedValue}</code>` : ""}</td>
+        <td style="padding:6px 8px;font-size:12px;color:#6b7280;">${f.fix}</td>
+      </tr>`,
+      )
+      .join("\n");
+
+    html += `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid #d1d5db;text-align:left;">
+          <th style="padding:6px 8px;width:80px;">Ernst</th>
+          <th style="padding:6px 8px;">Locatie</th>
+          <th style="padding:6px 8px;">Beschrijving</th>
+          <th style="padding:6px 8px;">Actie</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  return html;
+}
+
+// ---------------------------------------------------------------------------
+// Render full report HTML
+// ---------------------------------------------------------------------------
 
 export function renderReportHtml(
   report: ScanReport,
@@ -111,7 +199,6 @@ export function renderReportHtml(
   const critical = findings.filter((f) => f.severity === Severity.CRITICAL);
   const high = findings.filter((f) => f.severity === Severity.HIGH);
   const medium = findings.filter((f) => f.severity === Severity.MEDIUM);
-  const low = findings.filter((f) => f.severity === Severity.LOW);
 
   const date = new Date(report.scannedAt).toLocaleDateString("nl-NL", {
     year: "numeric",
@@ -122,46 +209,62 @@ export function renderReportHtml(
   return `<!DOCTYPE html>
 <html lang="nl">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#1f2937;">
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:900px;margin:0 auto;padding:20px;color:#1f2937;">
 
-<h1 style="border-bottom:3px solid #1f2937;padding-bottom:8px;">Repo Guardian — Scanrapport</h1>
+<h1 style="border-bottom:3px solid #1f2937;padding-bottom:8px;">Git Guardian — Scanrapport</h1>
 
-<h2>Management samenvatting</h2>
-<table style="font-size:14px;border-collapse:collapse;">
-  <tr><td style="padding:4px 16px 4px 0;"><strong>Gebruiker</strong></td><td>${report.githubUsername}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;"><strong>Datum</strong></td><td>${date}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;"><strong>Gescande repositories</strong></td><td>${report.totalRepos}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;"><strong>Totaal bevindingen</strong></td><td>${findings.length}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">${severityBadge(Severity.CRITICAL)}</td><td>${critical.length}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">${severityBadge(Severity.HIGH)}</td><td>${high.length}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">${severityBadge(Severity.MEDIUM)}</td><td>${medium.length}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">${severityBadge(Severity.LOW)}</td><td>${low.length}</td></tr>
-</table>
+<!-- Management samenvatting -->
+<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
+  <div>
+    <table style="font-size:14px;border-collapse:collapse;">
+      <tr><td style="padding:4px 16px 4px 0;color:#6b7280;">Gebruiker</td><td><strong>${report.githubUsername}</strong></td></tr>
+      <tr><td style="padding:4px 16px 4px 0;color:#6b7280;">Datum</td><td>${date}</td></tr>
+      <tr><td style="padding:4px 16px 4px 0;color:#6b7280;">Repositories</td><td>${report.totalRepos}</td></tr>
+      <tr><td style="padding:4px 16px 4px 0;color:#6b7280;">Bevindingen</td><td><strong>${findings.length}</strong></td></tr>
+    </table>
+  </div>
+  <div>
+    <table style="font-size:14px;border-collapse:collapse;">
+      <tr>
+        <td style="padding:4px 12px 4px 0;color:#6b7280;">Maturity</td>
+        <td style="padding:4px 0;">
+          <strong style="color:${MATURITY_COLORS[report.maturity.secrets]};">Secrets ${report.maturity.secrets}/5</strong> ·
+          <strong style="color:${MATURITY_COLORS[report.maturity.dependencies]};">Deps ${report.maturity.dependencies}/5</strong> ·
+          <strong style="color:${MATURITY_COLORS[report.maturity.pii]};">PII ${report.maturity.pii}/5</strong>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:4px 12px 4px 0;color:#6b7280;">Scores</td>
+        <td style="padding:4px 0;font-size:12px;color:#6b7280;">
+          1 Afwezig · 2 Minimaal · 3 Basis · 4 Goed · 5 Best practice
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
 
-<h3>Maturity scores</h3>
-<table style="font-size:14px;border-collapse:collapse;">
-  <tr><td style="padding:4px 16px 4px 0;">Secrets</td><td><strong>${report.maturity.secrets}/5</strong> — ${MATURITY_LABELS[report.maturity.secrets]}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">Dependencies</td><td><strong>${report.maturity.dependencies}/5</strong> — ${MATURITY_LABELS[report.maturity.dependencies]}</td></tr>
-  <tr><td style="padding:4px 16px 4px 0;">PII</td><td><strong>${report.maturity.pii}/5</strong> — ${MATURITY_LABELS[report.maturity.pii]}</td></tr>
-</table>
+<!-- Scan overzicht -->
+<h2>Uitgevoerde scans</h2>
+${scanOverviewTable(findings)}
 
-${critical.length + high.length > 0 ? `<h2 style="color:${SEVERITY_COLORS[Severity.CRITICAL]};">Kritieke en hoge bevindingen</h2>${findingsTable([...critical, ...high])}` : ""}
-
-${medium.length > 0 ? `<h2 style="color:${SEVERITY_COLORS[Severity.MEDIUM]};">Medium bevindingen</h2>${findingsTable(medium)}` : ""}
-
-${low.length > 0 ? `<h2 style="color:${SEVERITY_COLORS[Severity.LOW]};">Lage bevindingen</h2>${findingsTable(low)}` : ""}
+<!-- Bevindingen per categorie, gegroepeerd per repo -->
+${findingsByCategory(findings, Category.SECRET)}
+${findingsByCategory(findings, Category.DEPENDENCY)}
+${findingsByCategory(findings, Category.PII)}
 
 ${
   deepseekAnalysis
-    ? `<h2>AI-analyse (DeepSeek)</h2><div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:13px;">${deepseekAnalysis}</div>`
+    ? `<h2 style="margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;">AI-analyse (DeepSeek)</h2>
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.6;">${deepseekAnalysis}</div>`
     : ""
 }
 
-<h2>Actielijst</h2>
-<ol>
-${critical.map((f) => `<li><strong>[ONMIDDELLIJK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
-${high.map((f) => `<li><strong>[DEZE WEEK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
-${medium.map((f) => `<li><strong>[GEPLAND]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
+<!-- Actielijst -->
+<h2 style="margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;">Actielijst</h2>
+<ol style="line-height:1.8;">
+${critical.map((f) => `<li>${severityBadge(Severity.CRITICAL)} <strong>[ONMIDDELLIJK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code><br><span style="font-size:12px;color:#6b7280;">${f.fix}</span></li>`).join("\n")}
+${high.map((f) => `<li>${severityBadge(Severity.HIGH)} <strong>[DEZE WEEK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code><br><span style="font-size:12px;color:#6b7280;">${f.fix}</span></li>`).join("\n")}
+${medium.map((f) => `<li>${severityBadge(Severity.MEDIUM)} <strong>[GEPLAND]</strong> ${f.description} in <code>${f.repo}/${f.file}</code><br><span style="font-size:12px;color:#6b7280;">${f.fix}</span></li>`).join("\n")}
 </ol>
 
 <hr style="margin-top:40px;border:none;border-top:1px solid #e5e7eb;">
