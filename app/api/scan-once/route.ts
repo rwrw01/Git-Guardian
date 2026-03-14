@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ScanOnceInput } from "../../../src/types";
-import { listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
+import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
 import { scanForSecrets } from "../../../src/secrets";
 import { scanForPii } from "../../../src/pii";
 import { scanForDependencyVulns } from "../../../src/dependencies";
@@ -9,7 +9,6 @@ import { buildReport } from "../../../src/reporter";
 import { sendReportEmail } from "../../../src/email";
 import {
   addSubscriber,
-  getSubscriber,
   generateUnsubscribeToken,
 } from "../../../src/subscribers";
 import { getRedis } from "../../../src/redis";
@@ -22,9 +21,9 @@ import { getRedis } from "../../../src/redis";
 export const runtime = "nodejs";
 
 const RATE_LIMIT_SECONDS = 3600; // 1 hour
+const QUEUE_KEY = "scan-queue";
 
 export async function POST(request: NextRequest) {
-  // Parse and validate input
   const body = await request.json().catch(() => null);
   const parsed = ScanOnceInput.safeParse(body);
 
@@ -46,14 +45,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Rate limited",
-        message: "Maximum 1 scan per email per hour. Please try again later.",
+        message: "Er is al een scan gestart voor dit e-mailadres. Het rapport wordt per e-mail afgeleverd.",
       },
       { status: 429 },
     );
   }
 
-  // Set rate limit
+  // Set rate limit immediately so the button doesn't allow double submits
   await redis.set(rateLimitKey, 1, { ex: RATE_LIMIT_SECONDS });
+
+  // Check GitHub API rate limit before starting
+  const rateStatus = await checkRateLimit();
+
+  if (rateStatus.remaining < 50) {
+    // Not enough API calls left — queue the scan for later
+    await queueScan(redis, githubUsername, email);
+    await addSubscriber(githubUsername, email);
+
+    return NextResponse.json({
+      status: "queued",
+      message: `Door grote drukte is je scan in de wachtrij geplaatst. Het rapport wordt binnen ${rateStatus.resetMinutes + 5} minuten per e-mail afgeleverd op ${email}.`,
+    });
+  }
 
   try {
     // Scan all public repos (no DeepSeek)
@@ -96,10 +109,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build report and send email
     const report = buildReport(githubUsername, repos.length, allFindings);
-
-    // Save as subscriber
     await addSubscriber(githubUsername, email);
 
     const token = generateUnsubscribeToken(githubUsername);
@@ -107,17 +117,51 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       status: "complete",
-      message: `Scan complete. ${allFindings.length} findings across ${repos.length} repositories. Report sent to ${email}.`,
+      message: `Scan voltooid: ${allFindings.length} bevindingen in ${repos.length} repositories. Rapport verzonden naar ${email}.`,
       summary: {
         repos: repos.length,
         findings: allFindings.length,
       },
     });
   } catch (error) {
+    // If scan fails mid-way (e.g. rate limit hit during scan), queue it
     console.error(`[scan-once] Error: ${String(error)}`);
+
+    if (String(error).includes("rate limit")) {
+      await queueScan(redis, githubUsername, email);
+      return NextResponse.json({
+        status: "queued",
+        message: `De scan is in de wachtrij geplaatst vanwege drukte op de GitHub API. Het rapport wordt zo snel mogelijk per e-mail afgeleverd op ${email}.`,
+      });
+    }
+
     return NextResponse.json(
       { error: "Scan failed", message: String(error) },
       { status: 500 },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Queue helpers
+// ---------------------------------------------------------------------------
+
+interface QueueItem {
+  githubUsername: string;
+  email: string;
+  queuedAt: string;
+}
+
+async function queueScan(
+  redis: ReturnType<typeof getRedis>,
+  githubUsername: string,
+  email: string,
+): Promise<void> {
+  const item: QueueItem = {
+    githubUsername,
+    email,
+    queuedAt: new Date().toISOString(),
+  };
+  await redis.zadd(QUEUE_KEY, { score: Date.now(), member: JSON.stringify(item) });
+  console.log(`[scan-once] Queued scan for ${githubUsername} (${email})`);
 }

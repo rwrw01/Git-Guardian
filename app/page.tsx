@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type Status = "idle" | "scanning" | "done" | "error";
+type Status = "idle" | "scanning" | "done" | "queued" | "error";
 
 export default function Home() {
   const [username, setUsername] = useState("");
@@ -30,7 +30,11 @@ export default function Home() {
         return;
       }
 
-      setStatus("done");
+      if (data.status === "queued") {
+        setStatus("queued");
+      } else {
+        setStatus("done");
+      }
       setMessage(data.message);
     } catch {
       setStatus("error");
@@ -165,9 +169,11 @@ export default function Home() {
               fontSize: 14,
               backgroundColor: status === "error"
                 ? "rgba(220, 38, 38, 0.15)"
+                : status === "queued"
+                ? "rgba(59, 130, 246, 0.15)"
                 : "rgba(46, 160, 67, 0.15)",
-              color: status === "error" ? "#fca5a5" : "#86efac",
-              border: `1px solid ${status === "error" ? "rgba(220, 38, 38, 0.3)" : "rgba(46, 160, 67, 0.3)"}`,
+              color: status === "error" ? "#fca5a5" : status === "queued" ? "#93c5fd" : "#86efac",
+              border: `1px solid ${status === "error" ? "rgba(220, 38, 38, 0.3)" : status === "queued" ? "rgba(59, 130, 246, 0.3)" : "rgba(46, 160, 67, 0.3)"}`,
             }}
           >
             {message}

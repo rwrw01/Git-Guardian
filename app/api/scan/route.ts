@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { Finding } from "../../../src/types";
-import { listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
+import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
+import { getRedis } from "../../../src/redis";
 import { scanForSecrets } from "../../../src/secrets";
 import { scanForPii } from "../../../src/pii";
 import { scanForDependencyVulns } from "../../../src/dependencies";
@@ -188,9 +189,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Process queued self-service scans if we have API budget left
+    const queueProcessed = await processQueue();
+
     return NextResponse.json({
       message: "Scan complete",
       scanned: results.length,
+      queueProcessed,
       results,
     });
   } catch (error) {
@@ -200,4 +205,83 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Process queued self-service scans
+// ---------------------------------------------------------------------------
+
+async function processQueue(): Promise<number> {
+  const redis = getRedis();
+  const items = await redis.zrange<string[]>("scan-queue", 0, 9);
+  if (!items || items.length === 0) return 0;
+
+  const rateStatus = await checkRateLimit();
+  if (rateStatus.remaining < 100) {
+    console.log(`[scan-queue] Skipping queue: only ${rateStatus.remaining} API calls left`);
+    return 0;
+  }
+
+  let processed = 0;
+
+  for (const raw of items) {
+    const item = JSON.parse(raw) as { githubUsername: string; email: string };
+
+    try {
+      console.log(`[scan-queue] Processing queued scan for ${item.githubUsername}`);
+      const repos = await listPublicRepos(item.githubUsername);
+      const allFindings: Finding[] = [];
+
+      for (const repo of repos) {
+        try {
+          const tree = await getRepoTree(item.githubUsername, repo.name, repo.default_branch);
+          const files: Array<{ path: string; content: string }> = [];
+
+          const BATCH_SIZE = 10;
+          for (let i = 0; i < tree.length; i += BATCH_SIZE) {
+            const batch = tree.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(
+              batch.map(async (entry) => {
+                const content = await getFileContent(item.githubUsername, repo.name, entry.path);
+                if (content) return { path: entry.path, content };
+                return null;
+              }),
+            );
+            for (const result of results) {
+              if (result.status === "fulfilled" && result.value) {
+                files.push(result.value);
+              }
+            }
+          }
+
+          const [s, p, d] = await Promise.all([
+            Promise.resolve(scanForSecrets(files, repo.full_name)),
+            Promise.resolve(scanForPii(files, repo.full_name)),
+            scanForDependencyVulns(files, repo.full_name),
+          ]);
+
+          if (s.ok) allFindings.push(...s.findings);
+          if (p.ok) allFindings.push(...p.findings);
+          if (d.ok) allFindings.push(...d.findings);
+        } catch (err) {
+          console.error(`[scan-queue] Error scanning ${repo.full_name}: ${String(err)}`);
+        }
+      }
+
+      const report = buildReport(item.githubUsername, repos.length, allFindings);
+      const token = generateUnsubscribeToken(item.githubUsername);
+      await sendReportEmail(report, item.email, token);
+
+      // Remove from queue
+      await redis.zrem("scan-queue", raw);
+      processed++;
+      console.log(`[scan-queue] Completed queued scan for ${item.githubUsername}: ${allFindings.length} findings`);
+    } catch (err) {
+      console.error(`[scan-queue] Failed to process ${item.githubUsername}: ${String(err)}`);
+      // Remove failed item too (prevent infinite retry)
+      await redis.zrem("scan-queue", raw);
+    }
+  }
+
+  return processed;
 }

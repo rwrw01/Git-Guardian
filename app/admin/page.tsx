@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 
+interface HealthWarning {
+  type: "redis" | "github";
+  message: string;
+}
+
 interface DashboardData {
   subscribers: number;
   totalScans: number;
@@ -23,6 +28,7 @@ export default function AdminDashboard() {
   const [scanUsername, setScanUsername] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState("");
+  const [warnings, setWarnings] = useState<HealthWarning[]>([]);
 
   const load = useCallback(async () => {
     const [subRes, scanRes] = await Promise.all([
@@ -54,6 +60,20 @@ export default function AdminDashboard() {
       lastScanId: latestReport?.id as string | undefined,
       lastDeepseekAnalysis: latestReport?.deepseekAnalysis as string | null | undefined,
     });
+
+    // Health checks
+    try {
+      const healthRes = await fetch("/api/admin/scans?health=true");
+      const health = await healthRes.json();
+      const w: HealthWarning[] = [];
+      if (health.redisUsagePercent > 90) {
+        w.push({ type: "redis", message: `Redis database is ${health.redisUsagePercent}% vol. Overweeg oude data op te ruimen.` });
+      }
+      if (health.githubRateRemaining < 100) {
+        w.push({ type: "github", message: `GitHub API: ${health.githubRateRemaining}/${health.githubRateLimit} requests over. Reset over ${health.githubRateResetMin} min.` });
+      }
+      setWarnings(w);
+    } catch { /* ignore health check errors */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -102,6 +122,28 @@ export default function AdminDashboard() {
       <h1 style={{ fontSize: 20, color: "#cccccc", fontWeight: 400, marginBottom: 24 }}>
         Dashboard
       </h1>
+
+      {/* Health warnings */}
+      {warnings.map((w, i) => (
+        <div
+          key={i}
+          style={{
+            background: w.type === "redis" ? "#451a03" : "#172554",
+            border: `1px solid ${w.type === "redis" ? "#92400e" : "#1e3a5f"}`,
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 12,
+            fontSize: 13,
+            color: w.type === "redis" ? "#fbbf24" : "#93c5fd",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>{w.type === "redis" ? "\u26A0" : "\u23F3"}</span>
+          {w.message}
+        </div>
+      ))}
 
       {/* Stat cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>

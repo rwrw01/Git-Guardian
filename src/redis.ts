@@ -95,6 +95,19 @@ export const redis = {
   async zcard(key: string): Promise<number> {
     return getClient().zcard(key);
   },
+
+  async zrem(key: string, member: string): Promise<number> {
+    return getClient().zrem(key, member);
+  },
+
+  async dbsize(): Promise<number> {
+    return getClient().dbsize();
+  },
+
+  async info(section?: string): Promise<string> {
+    if (section) return getClient().info(section);
+    return getClient().info();
+  },
 };
 
 export function getRedis(): typeof redis {

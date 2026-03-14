@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { auth } from "../../../../src/auth";
 import { getScanReports, getScanReport, countScanReports, getConfig, setConfig } from "../../../../src/scan-store";
 import { logAudit } from "../../../../src/audit-log";
-import { listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
+import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
+import { getRedis } from "../../../../src/redis";
 import { scanForSecrets } from "../../../../src/secrets";
 import { scanForPii } from "../../../../src/pii";
 import { scanForDependencyVulns } from "../../../../src/dependencies";
@@ -30,6 +31,30 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+
+  // Health check endpoint
+  if (searchParams.get("health") === "true") {
+    const redis = getRedis();
+    const rateStatus = await checkRateLimit();
+    let redisUsagePercent = 0;
+    try {
+      const infoStr = await redis.info("memory");
+      const usedMatch = infoStr.match(/used_memory:(\d+)/);
+      const maxMatch = infoStr.match(/maxmemory:(\d+)/);
+      if (usedMatch && maxMatch && parseInt(maxMatch[1], 10) > 0) {
+        redisUsagePercent = Math.round(
+          (parseInt(usedMatch[1], 10) / parseInt(maxMatch[1], 10)) * 100,
+        );
+      }
+    } catch { /* Redis info not available */ }
+
+    return NextResponse.json({
+      redisUsagePercent,
+      githubRateRemaining: rateStatus.remaining,
+      githubRateLimit: rateStatus.limit,
+      githubRateResetMin: rateStatus.resetMinutes,
+    });
+  }
 
   // Config endpoint
   if (searchParams.get("config") === "true") {

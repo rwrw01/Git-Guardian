@@ -9,6 +9,34 @@ const GITHUB_API = "https://api.github.com";
 
 let useUnauthenticated = false;
 
+/**
+ * Check current GitHub API rate limit status.
+ * Returns remaining requests and minutes until reset.
+ */
+export async function checkRateLimit(): Promise<{
+  remaining: number;
+  limit: number;
+  resetMinutes: number;
+}> {
+  const h: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "Git-Guardian/0.1",
+  };
+  if (process.env.GITHUB_TOKEN) {
+    h.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  try {
+    const res = await fetch(`${GITHUB_API}/rate_limit`, { headers: h });
+    const data = (await res.json()) as { resources: { core: { remaining: number; limit: number; reset: number } } };
+    const core = data.resources.core;
+    const resetMinutes = Math.max(0, Math.ceil((core.reset * 1000 - Date.now()) / 60_000));
+    return { remaining: core.remaining, limit: core.limit, resetMinutes };
+  } catch {
+    return { remaining: 0, limit: 5000, resetMinutes: 60 };
+  }
+}
+
 function headers(): HeadersInit {
   const h: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
