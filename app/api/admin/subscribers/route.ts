@@ -6,13 +6,12 @@ import { logAudit } from "../../../../src/audit-log";
 
 export const runtime = "nodejs";
 
-async function getSession(request: NextRequest) {
-  // @ts-expect-error — NextAuth v5 beta typing
-  return auth(request);
+async function getSession() {
+  return auth();
 }
 
 export async function GET(request: NextRequest) {
-  const session = await getSession(request);
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession(request);
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -43,7 +42,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await getSession(request);
+  const session = await getSession();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

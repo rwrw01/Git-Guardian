@@ -15,10 +15,11 @@ const ALLOWED_ADMINS = (process.env.ADMIN_GITHUB_USERS ?? "")
 // ---------------------------------------------------------------------------
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId: process.env.GITHUB_CLIENT_ID ?? "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
     }),
   ],
 
