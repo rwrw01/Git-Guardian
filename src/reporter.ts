@@ -213,6 +213,14 @@ export function renderReportHtml(
 
 <h1 style="border-bottom:3px solid #1f2937;padding-bottom:8px;">Git Guardian — Scanrapport</h1>
 
+${report.reportType === "delta" ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1e40af;">
+  <strong>Delta-rapport</strong> — alleen nieuwe bevindingen sinds de vorige scan.
+  ${report.previousFindingsCount ? `${report.previousFindingsCount} eerder gemelde bevinding${report.previousFindingsCount !== 1 ? "en" : ""} niet opnieuw getoond.` : ""}
+  Op de 1e van de maand ontvangt u het volledige overzicht.
+</div>` : report.reportType === "full" ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#166534;">
+  <strong>Volledig maandoverzicht</strong> — alle bevindingen over al uw repositories.
+</div>` : ""}
+
 <!-- Management samenvatting -->
 <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
   <div>

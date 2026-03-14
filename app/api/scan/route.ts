@@ -13,6 +13,12 @@ import {
   updateLastScan,
   generateUnsubscribeToken,
 } from "../../../src/subscribers";
+import {
+  saveScanReport,
+  classifyFindings,
+  saveKnownFindings,
+  getConfig,
+} from "../../../src/scan-store";
 
 // ---------------------------------------------------------------------------
 // Daily cron endpoint — POST /api/scan
@@ -106,25 +112,50 @@ export async function POST(request: NextRequest) {
         sub.deepseekEnabled,
       );
 
-      const report = buildReport(sub.githubUsername, repoCount, findings);
+      // Delta reporting: classify findings as new or previously known
+      const { newFindings, knownFindings } = await classifyFindings(
+        sub.githubUsername,
+        findings,
+      );
 
-      // DeepSeek analysis for owner only
+      // Determine report type: full on configured day of month, delta otherwise
+      const fullReportDay = await getConfig("full-report-day", 1);
+      const isFullReportDay = new Date().getDate() === fullReportDay;
+      const reportFindings = isFullReportDay ? findings : newFindings;
+
+      const report = buildReport(sub.githubUsername, repoCount, reportFindings);
+      report.reportType = isFullReportDay ? "full" : "delta";
+      report.previousFindingsCount = knownFindings.length;
+
+      // DeepSeek analysis for owner only (only when there are new findings)
       let deepseekAnalysis: string | null = null;
-      if (sub.deepseekEnabled && findings.length > 0) {
-        const codeContext = findings
+      if (sub.deepseekEnabled && newFindings.length > 0) {
+        const codeContext = newFindings
           .slice(0, 10)
           .map((f) => `${f.file}:${f.line} — ${f.description}`)
           .join("\n");
-        deepseekAnalysis = await analyzeWithDeepSeek(findings, codeContext);
+        deepseekAnalysis = await analyzeWithDeepSeek(newFindings, codeContext);
       }
 
-      const token = generateUnsubscribeToken(sub.githubUsername);
-      const emailed = await sendReportEmail(
-        report,
-        sub.email,
-        token,
-        deepseekAnalysis,
-      );
+      if (deepseekAnalysis) {
+        report.deepseekAnalysis = deepseekAnalysis;
+      }
+
+      // Save report and update known findings
+      await saveScanReport(report);
+      await saveKnownFindings(sub.githubUsername, findings);
+
+      // Only send email if there are new findings or it's full report day
+      let emailed = false;
+      if (newFindings.length > 0 || isFullReportDay) {
+        const token = generateUnsubscribeToken(sub.githubUsername);
+        emailed = await sendReportEmail(
+          report,
+          sub.email,
+          token,
+          deepseekAnalysis,
+        );
+      }
 
       await updateLastScan(sub.githubUsername);
 

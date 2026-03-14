@@ -4,5 +4,16 @@
       "path": "/api/scan",
       "schedule": "0 6 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/admin/scans/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/scan/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/scan-once/route.ts": {
+      "maxDuration": 120
+    }
+  }
 }

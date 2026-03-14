@@ -1,4 +1,4 @@
-import type { ScanReport } from "./types";
+import type { ScanReport, Finding } from "./types";
 
 import { getRedis } from "./redis";
 
@@ -104,4 +104,79 @@ export async function listFalsePositives(): Promise<FalsePositive[]> {
     if (fp) fps.push(fp);
   }
   return fps;
+}
+
+// ---------------------------------------------------------------------------
+// Delta reporting — track known findings per user
+// ---------------------------------------------------------------------------
+
+const KNOWN_PREFIX = "known-findings:";
+
+/**
+ * Generate a fingerprint for a finding (deterministic, same finding = same hash).
+ */
+export function findingFingerprint(f: Finding): string {
+  return Buffer.from(`${f.repo}:${f.file}:${f.line}:${f.category}:${f.description}`)
+    .toString("base64url")
+    .slice(0, 40);
+}
+
+/**
+ * Get the set of known finding fingerprints for a user.
+ */
+export async function getKnownFindings(username: string): Promise<Set<string>> {
+  const kv = getRedis();
+  const data = await kv.get<string[]>(`${KNOWN_PREFIX}${username.toLowerCase()}`);
+  return new Set(data ?? []);
+}
+
+/**
+ * Save the current set of finding fingerprints for a user.
+ */
+export async function saveKnownFindings(
+  username: string,
+  findings: Finding[],
+): Promise<void> {
+  const kv = getRedis();
+  const fingerprints = findings.map(findingFingerprint);
+  await kv.set(`${KNOWN_PREFIX}${username.toLowerCase()}`, fingerprints);
+}
+
+/**
+ * Split findings into new and previously known.
+ */
+export async function classifyFindings(
+  username: string,
+  findings: Finding[],
+): Promise<{ newFindings: Finding[]; knownFindings: Finding[] }> {
+  const known = await getKnownFindings(username);
+  const newFindings: Finding[] = [];
+  const knownFindings: Finding[] = [];
+
+  for (const f of findings) {
+    if (known.has(findingFingerprint(f))) {
+      knownFindings.push(f);
+    } else {
+      newFindings.push(f);
+    }
+  }
+
+  return { newFindings, knownFindings };
+}
+
+// ---------------------------------------------------------------------------
+// Scan configuration
+// ---------------------------------------------------------------------------
+
+const CONFIG_PREFIX = "config:";
+
+export async function getConfig<T>(key: string, defaultValue: T): Promise<T> {
+  const kv = getRedis();
+  const val = await kv.get<T>(`${CONFIG_PREFIX}${key}`);
+  return val ?? defaultValue;
+}
+
+export async function setConfig(key: string, value: unknown): Promise<void> {
+  const kv = getRedis();
+  await kv.set(`${CONFIG_PREFIX}${key}`, value);
 }

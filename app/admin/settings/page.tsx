@@ -1,46 +1,147 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
+interface Config {
+  scanHourUtc: number;
+  fullReportDay: number;
+}
+
 export default function SettingsPage() {
+  const [config, setConfig] = useState<Config>({ scanHourUtc: 6, fullReportDay: 1 });
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    fetch("/api/admin/scans?config=true")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.scanHourUtc !== undefined) {
+          setConfig({ scanHourUtc: data.scanHourUtc, fullReportDay: data.fullReportDay ?? 1 });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveConfig() {
+    setSaving(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/scans?config=true", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      if (res.ok) {
+        setMessage("Instellingen opgeslagen");
+      } else {
+        setMessage("Fout bij opslaan");
+      }
+    } catch {
+      setMessage("Netwerkfout");
+    }
+    setSaving(false);
+  }
+
+  const inputStyle = {
+    padding: "4px 8px",
+    fontSize: 13,
+    background: "#3c3c3c",
+    border: "1px solid #555",
+    borderRadius: 2,
+    color: "#cccccc",
+    outline: "none",
+    fontFamily: "monospace" as const,
+    width: 60,
+  };
+
   return (
     <div>
       <h1 style={{ fontSize: 20, color: "#cccccc", fontWeight: 400, marginBottom: 24 }}>
         Settings
       </h1>
 
+      {/* Scan schedule */}
       <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20, marginBottom: 16 }}>
         <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 16, textTransform: "uppercase" }}>
-          Scan Configuration
+          Scan Planning
         </h2>
         <table style={{ fontSize: 13, color: "#cccccc", borderCollapse: "collapse" }}>
           <tbody>
             <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>Daily cron schedule</td>
-              <td style={{ fontFamily: "monospace", color: "#ce9178" }}>0 6 * * * (06:00 UTC)</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Dagelijkse scan (UTC)</td>
+              <td>
+                <select
+                  value={config.scanHourUtc}
+                  onChange={(e) => setConfig({ ...config, scanHourUtc: parseInt(e.target.value, 10) })}
+                  style={{ ...inputStyle, width: 80 }}
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{`${h.toString().padStart(2, "0")}:00`}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11, color: "#858585", marginLeft: 8 }}>
+                  = {((config.scanHourUtc + 1) % 24).toString().padStart(2, "0")}:00 CET /
+                  {" "}{((config.scanHourUtc + 2) % 24).toString().padStart(2, "0")}:00 CEST
+                </span>
+              </td>
             </tr>
             <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>Scan timeout (daily)</td>
-              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>300s (5 min)</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Volledig rapport op dag</td>
+              <td>
+                <select
+                  value={config.fullReportDay}
+                  onChange={(e) => setConfig({ ...config, fullReportDay: parseInt(e.target.value, 10) })}
+                  style={{ ...inputStyle, width: 80 }}
+                >
+                  {Array.from({ length: 28 }, (_, d) => (
+                    <option key={d + 1} value={d + 1}>{`${d + 1}e`}</option>
+                  ))}
+                </select>
+                <span style={{ fontSize: 11, color: "#858585", marginLeft: 8 }}>
+                  van de maand (anders: alleen nieuwe bevindingen)
+                </span>
+              </td>
             </tr>
             <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>Scan timeout (one-time)</td>
-              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>120s (2 min)</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Admin scan timeout</td>
+              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>300s (5 min) — geen limiet bij handmatige scan</td>
             </tr>
             <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>Rate limit (self-service)</td>
-              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>1 scan / email / hour</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Self-service rate limit</td>
+              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>1 scan / email / uur</td>
             </tr>
             <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>DeepSeek model</td>
-              <td style={{ fontFamily: "monospace", color: "#ce9178" }}>deepseek-reasoner</td>
-            </tr>
-            <tr>
-              <td style={{ padding: "6px 16px 6px 0", color: "#858585" }}>Report retention</td>
-              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>90 days</td>
+              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Rapport retentie</td>
+              <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>90 dagen</td>
             </tr>
           </tbody>
         </table>
+        <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={saveConfig}
+            disabled={saving}
+            style={{
+              padding: "6px 16px",
+              fontSize: 13,
+              background: saving ? "#3c3c3c" : "#2ea043",
+              color: "#fff",
+              border: "none",
+              borderRadius: 2,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            {saving ? "Opslaan..." : "Opslaan"}
+          </button>
+          {message && (
+            <span style={{ fontSize: 12, color: message.startsWith("Fout") ? "#f44747" : "#6a9955" }}>
+              {message}
+            </span>
+          )}
+        </div>
       </div>
 
+      {/* Environment status */}
       <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20, marginBottom: 16 }}>
         <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 16, textTransform: "uppercase" }}>
           Environment Status
@@ -52,7 +153,7 @@ export default function SettingsPage() {
               "RESEND_API_KEY",
               "SCAN_EMAIL_FROM",
               "CRON_SECRET",
-              "KV_REST_API_URL / REDIS_URL",
+              "REDIS_URL",
               "DEEPSEEK_API_KEY",
               "GITHUB_CLIENT_ID",
               "GITHUB_CLIENT_SECRET",
@@ -72,6 +173,7 @@ export default function SettingsPage() {
         </table>
       </div>
 
+      {/* Security */}
       <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20 }}>
         <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 16, textTransform: "uppercase" }}>
           Security

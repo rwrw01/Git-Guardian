@@ -22,8 +22,36 @@ async function ghFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${GITHUB_API}${path}`, { headers: headers() });
 
   const remaining = res.headers.get("x-ratelimit-remaining");
-  if (remaining && parseInt(remaining, 10) < 10) {
-    console.warn(`[github] Rate limit low: ${remaining} remaining`);
+  const resetAt = res.headers.get("x-ratelimit-reset");
+
+  if (remaining) {
+    const left = parseInt(remaining, 10);
+    if (left < 50) {
+      console.warn(`[github] Rate limit low: ${left} remaining`);
+    }
+    // Auto-throttle: if nearly exhausted, wait until reset
+    if (left < 10 && resetAt) {
+      const waitMs = Math.max(0, parseInt(resetAt, 10) * 1000 - Date.now()) + 1000;
+      if (waitMs < 120_000) {
+        console.warn(`[github] Rate limit near zero, waiting ${Math.round(waitMs / 1000)}s for reset`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
+  }
+
+  // Handle 403 rate limit: wait and retry once
+  if (res.status === 403 && resetAt) {
+    const waitMs = Math.max(0, parseInt(resetAt, 10) * 1000 - Date.now()) + 1000;
+    if (waitMs < 120_000) {
+      console.warn(`[github] 403 rate limited on ${path}, waiting ${Math.round(waitMs / 1000)}s`);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      const retry = await fetch(`${GITHUB_API}${path}`, { headers: headers() });
+      if (!retry.ok) {
+        const body = await retry.text().catch(() => "");
+        throw new Error(`GitHub API ${retry.status}: ${path} — ${body}`);
+      }
+      return retry.json() as Promise<T>;
+    }
   }
 
   if (!res.ok) {

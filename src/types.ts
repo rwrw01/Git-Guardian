@@ -141,4 +141,9 @@ export interface ScanReport {
     dependencies: number;
     pii: number;
   };
+  deepseekAnalysis?: string | null;
+  /** "delta" = only new findings, "full" = all findings */
+  reportType?: "delta" | "full";
+  /** Number of previously known findings (only in delta reports) */
+  previousFindingsCount?: number;
 }

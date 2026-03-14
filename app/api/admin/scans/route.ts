@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { auth } from "../../../../src/auth";
-import { getScanReports, getScanReport, countScanReports } from "../../../../src/scan-store";
+import { getScanReports, getScanReport, countScanReports, getConfig, setConfig } from "../../../../src/scan-store";
 import { logAudit } from "../../../../src/audit-log";
 import { listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
 import { scanForSecrets } from "../../../../src/secrets";
@@ -30,6 +30,14 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
+
+  // Config endpoint
+  if (searchParams.get("config") === "true") {
+    const scanHourUtc = await getConfig("scan-hour-utc", 6);
+    const fullReportDay = await getConfig("full-report-day", 1);
+    return NextResponse.json({ scanHourUtc, fullReportDay });
+  }
+
   const id = searchParams.get("id");
 
   if (id) {
@@ -46,6 +54,34 @@ export async function GET(request: NextRequest) {
   const total = await countScanReports();
 
   return NextResponse.json({ reports, total, offset, limit });
+}
+
+/**
+ * PUT: update scan configuration
+ */
+export async function PUT(request: NextRequest) {
+  const session = await getSession();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
+
+  if (typeof body.scanHourUtc === "number" && body.scanHourUtc >= 0 && body.scanHourUtc <= 23) {
+    await setConfig("scan-hour-utc", body.scanHourUtc);
+  }
+  if (typeof body.fullReportDay === "number" && body.fullReportDay >= 1 && body.fullReportDay <= 28) {
+    await setConfig("full-report-day", body.fullReportDay);
+  }
+
+  await logAudit(actor, "CONFIG_UPDATE", "scan-settings", `Updated: hour=${body.scanHourUtc}, fullReportDay=${body.fullReportDay}`);
+
+  return NextResponse.json({ ok: true });
 }
 
 /**
@@ -119,11 +155,16 @@ export async function POST(request: NextRequest) {
       deepseekAnalysis = await analyzeWithDeepSeek(allFindings, codeContext);
     }
 
+    // Store DeepSeek analysis in the report
+    if (deepseekAnalysis) {
+      report.deepseekAnalysis = deepseekAnalysis;
+    }
+
     const scanId = await saveScanReport(report);
 
-    // Optionally email the subscriber
+    // Email the subscriber (always for admin scans with sendEmail flag)
     const sub = await getSubscriber(targetUsername);
-    if (sub && body.sendEmail) {
+    if (sub && body.sendEmail !== false) {
       const token = generateUnsubscribeToken(targetUsername);
       await sendReportEmail(report, sub.email, token, deepseekAnalysis);
       await updateLastScan(targetUsername);
@@ -135,7 +176,7 @@ export async function POST(request: NextRequest) {
       scanId,
       findings: allFindings.length,
       repos: repos.length,
-      deepseekAnalysis: deepseekAnalysis ? true : false,
+      hasDeepseekAnalysis: !!deepseekAnalysis,
     });
   } catch (error) {
     await logAudit(actor, "SCAN_ERROR", targetUsername, `Scan failed: ${String(error)}`);
