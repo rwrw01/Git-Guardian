@@ -1,18 +1,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../src/auth";
-import { getScanReports, getScanReport, countScanReports } from "../../src/scan-store";
-import { logAudit } from "../../src/audit-log";
-import { listPublicRepos, getRepoTree, getFileContent } from "../../src/github";
-import { scanForSecrets } from "../../src/secrets";
-import { scanForPii } from "../../src/pii";
-import { scanForDependencyVulns } from "../../src/dependencies";
-import { analyzeWithDeepSeek } from "../../src/deepseek";
-import { buildReport } from "../../src/reporter";
-import { sendReportEmail } from "../../src/email";
-import { saveScanReport } from "../../src/scan-store";
-import { getSubscriber, generateUnsubscribeToken, updateLastScan } from "../../src/subscribers";
-import type { Finding } from "../../src/types";
+import { auth } from "../../../../src/auth";
+import { getScanReports, getScanReport, countScanReports } from "../../../../src/scan-store";
+import { logAudit } from "../../../../src/audit-log";
+import { listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
+import { scanForSecrets } from "../../../../src/secrets";
+import { scanForPii } from "../../../../src/pii";
+import { scanForDependencyVulns } from "../../../../src/dependencies";
+import { analyzeWithDeepSeek } from "../../../../src/deepseek";
+import { buildReport } from "../../../../src/reporter";
+import { sendReportEmail } from "../../../../src/email";
+import { saveScanReport } from "../../../../src/scan-store";
+import { getSubscriber, generateUnsubscribeToken, updateLastScan } from "../../../../src/subscribers";
+import type { Finding } from "../../../../src/types";
 
 export const runtime = "nodejs";
 

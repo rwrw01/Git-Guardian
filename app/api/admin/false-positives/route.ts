@@ -1,13 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../src/auth";
+import { auth } from "../../../../src/auth";
 import {
   listFalsePositives,
   markFalsePositive,
   unmarkFalsePositive,
   type FalsePositive,
-} from "../../src/scan-store";
-import { logAudit } from "../../src/audit-log";
+} from "../../../../src/scan-store";
+import { logAudit } from "../../../../src/audit-log";
 
 export const runtime = "nodejs";
 

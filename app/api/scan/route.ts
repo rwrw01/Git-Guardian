@@ -1,18 +1,18 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { Finding } from "../src/types";
-import { listPublicRepos, getRepoTree, getFileContent } from "../src/github";
-import { scanForSecrets } from "../src/secrets";
-import { scanForPii } from "../src/pii";
-import { scanForDependencyVulns } from "../src/dependencies";
-import { analyzeWithDeepSeek } from "../src/deepseek";
-import { buildReport } from "../src/reporter";
-import { sendReportEmail } from "../src/email";
+import type { Finding } from "../../../src/types";
+import { listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
+import { scanForSecrets } from "../../../src/secrets";
+import { scanForPii } from "../../../src/pii";
+import { scanForDependencyVulns } from "../../../src/dependencies";
+import { analyzeWithDeepSeek } from "../../../src/deepseek";
+import { buildReport } from "../../../src/reporter";
+import { sendReportEmail } from "../../../src/email";
 import {
   listSubscribers,
   updateLastScan,
   generateUnsubscribeToken,
-} from "../src/subscribers";
+} from "../../../src/subscribers";
 
 // ---------------------------------------------------------------------------
 // Daily cron endpoint — POST /api/scan
