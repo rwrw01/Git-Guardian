@@ -186,13 +186,6 @@ export default function Home() {
           </li>
         </ul>
 
-        <h3 style={{ fontSize: 16, color: "#d1d5db" }}>Privacy</h3>
-        <p style={{ lineHeight: 1.6 }}>
-          We only read publicly available repository data via the GitHub API. Your
-          email address is stored to deliver the report and for optional daily
-          scans. Every email includes an unsubscribe link. We do not share your
-          data with third parties.
-        </p>
       </div>
 
       <footer
