@@ -1,9 +1,9 @@
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 import type { Subscriber } from "./types";
 import { createHmac } from "crypto";
 
 // ---------------------------------------------------------------------------
-// Subscriber datastore — Vercel KV (Redis)
+// Subscriber datastore — Upstash Redis
 // Key: subscriber:{github_username}
 // ---------------------------------------------------------------------------
 
@@ -11,6 +11,18 @@ const PREFIX = "subscriber:";
 
 function key(username: string): string {
   return `${PREFIX}${username.toLowerCase()}`;
+}
+
+let redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!redis) {
+    redis = new Redis({
+      url: process.env.KV_REST_API_URL!,
+      token: process.env.KV_REST_API_TOKEN!,
+    });
+  }
+  return redis;
 }
 
 // ---------------------------------------------------------------------------
@@ -40,7 +52,16 @@ export function verifyUnsubscribeToken(
 // ---------------------------------------------------------------------------
 
 export async function listSubscribers(): Promise<Subscriber[]> {
-  const keys = await kv.keys(`${PREFIX}*`);
+  const kv = getRedis();
+  const keys: string[] = [];
+  let cursor = "0";
+
+  do {
+    const result = await kv.scan(cursor, { match: `${PREFIX}*`, count: 100 });
+    cursor = String(result[0]);
+    keys.push(...result[1]);
+  } while (cursor !== "0");
+
   if (keys.length === 0) return [];
 
   const subscribers: Subscriber[] = [];
@@ -54,7 +75,7 @@ export async function listSubscribers(): Promise<Subscriber[]> {
 export async function getSubscriber(
   username: string,
 ): Promise<Subscriber | null> {
-  return kv.get<Subscriber>(key(username));
+  return getRedis().get<Subscriber>(key(username));
 }
 
 export async function addSubscriber(
@@ -62,9 +83,9 @@ export async function addSubscriber(
   email: string,
   isOwner = false,
 ): Promise<Subscriber> {
+  const kv = getRedis();
   const existing = await getSubscriber(username);
   if (existing) {
-    // Update email if changed, keep existing fields
     const updated: Subscriber = { ...existing, email };
     await kv.set(key(username), updated);
     return updated;
@@ -84,14 +105,14 @@ export async function addSubscriber(
 }
 
 export async function removeSubscriber(username: string): Promise<boolean> {
-  const deleted = await kv.del(key(username));
+  const deleted = await getRedis().del(key(username));
   return deleted > 0;
 }
 
 export async function updateLastScan(username: string): Promise<void> {
   const sub = await getSubscriber(username);
   if (!sub) return;
-  await kv.set(key(username), {
+  await getRedis().set(key(username), {
     ...sub,
     lastScanAt: new Date().toISOString(),
   });

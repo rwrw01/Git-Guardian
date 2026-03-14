@@ -12,7 +12,7 @@ import {
   getSubscriber,
   generateUnsubscribeToken,
 } from "../src/subscribers";
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 
 // ---------------------------------------------------------------------------
 // One-time scan endpoint — POST /api/scan-once
@@ -38,8 +38,12 @@ export async function POST(request: NextRequest) {
   const { githubUsername, email } = parsed.data;
 
   // Rate limiting: 1 scan per email per hour
+  const redis = new Redis({
+    url: process.env.KV_REST_API_URL!,
+    token: process.env.KV_REST_API_TOKEN!,
+  });
   const rateLimitKey = `ratelimit:scan-once:${email.toLowerCase()}`;
-  const existing = await kv.get(rateLimitKey);
+  const existing = await redis.get(rateLimitKey);
 
   if (existing) {
     return NextResponse.json(
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Set rate limit
-  await kv.set(rateLimitKey, 1, { ex: RATE_LIMIT_SECONDS });
+  await redis.set(rateLimitKey, 1, { ex: RATE_LIMIT_SECONDS });
 
   try {
     // Scan all public repos (no DeepSeek)
