@@ -1,18 +1,54 @@
 # Git Guardian
 
-Automated security scanner for public GitHub repositories. Runs daily scans for secrets/tokens, dependency vulnerabilities, and PII data via Vercel cron. Optionally uses DeepSeek AI for deeper code analysis. Reports are delivered by email via Resend.
+## Why this exists
 
-Also available as a **self-service web page** where colleagues can trigger a one-time scan on their own public repos.
+Public GitHub repositories are visible to everyone — including bots that scrape for leaked API keys, database credentials, and personal data. A single committed secret can be exploited within minutes. Dependency vulnerabilities pile up silently. And personal information (BSN numbers, IBANs) sometimes ends up in code, config files, or test fixtures without anyone noticing.
 
-## Features
+Git Guardian watches your public repos so you don't have to. It runs a daily automated scan across every public repository for a GitHub user, looking for three categories of risk:
 
-- **Secret detection** — regex + Shannon entropy, based on best practices from TruffleHog, Gitleaks, and detect-secrets
-- **Dependency scanning** — vulnerability lookup via OSV.dev API (npm, PyPI, Go, Maven)
-- **PII detection** — Dutch-specific: BSN (11-check), IBAN (mod-97), email, phone, KvK, postal code
-- **DeepSeek AI analysis** — optional deep code analysis (owner-only)
-- **Daily cron** — automatic scan at 06:00 UTC via Vercel cron
-- **Self-service** — web page for one-time scans, report delivered by email
-- **Subscriber management** — Vercel KV storage, unsubscribe via email link
+1. **Secrets and tokens** — AWS keys, GitHub tokens, private keys, API keys, passwords, and dozens more patterns. Uses regex matching combined with Shannon entropy analysis to catch both known patterns and high-entropy strings that look like credentials.
+
+2. **Dependency vulnerabilities** — Parses lockfiles and manifests (`package.json`, `requirements.txt`, `Gemfile.lock`, `go.sum`, `pom.xml`) and queries the OSV.dev vulnerability database. Reports known CVEs with severity scores and fix versions.
+
+3. **Personally identifiable information (PII)** — Dutch-specific detection for BSN numbers (validated with the 11-check algorithm), IBAN numbers (validated with mod-97 checksum), email addresses, phone numbers, KvK numbers, and postal codes. Not just regex — mathematical validation catches real numbers while reducing false positives.
+
+When findings exist, a severity-classified report is emailed to the repository owner. No findings, no email — no noise.
+
+## Owner vs. self-service mode
+
+Git Guardian runs in two modes:
+
+- **Daily cron (owner)** — Scans all subscribers automatically at 06:00 UTC. For the repo owner, scans include an optional DeepSeek AI analysis pass that reviews suspicious patterns, identifies likely false positives, and flags risks that regex alone would miss.
+
+- **Self-service (anyone)** — A web page where anyone can enter their GitHub username and email to trigger a one-time scan of their public repos. The scan runs without DeepSeek (cost/privacy reasons). The user is added as a subscriber and receives future daily scans. Every email includes an unsubscribe link.
+
+## What makes it different
+
+Git Guardian is not a wrapper around existing tools. It is a purpose-built scanner that adopts the best ideas from the field — TruffleHog's verification approach, Gitleaks' SARIF structure, detect-secrets' entropy analysis, OSV-Scanner's batch querying, and Presidio's checksum validation — and combines them into a single lightweight service that runs on Vercel with zero infrastructure to manage.
+
+## How it works
+
+```
+GitHub API          OSV.dev API         DeepSeek API (owner only)
+    │                   │                       │
+    ▼                   ▼                       ▼
+┌─────────┐     ┌──────────────┐     ┌──────────────────┐
+│ secrets  │     │ dependencies │     │  AI verification │
+│ + PII   │     │    vulns     │     │  + deep analysis │
+└────┬─────┘    └──────┬───────┘     └────────┬─────────┘
+     │                 │                      │
+     └────────┬────────┘──────────────────────┘
+              ▼
+       ┌────────────┐
+       │  reporter   │  → severity classification
+       └──────┬─────┘
+              ▼
+       ┌────────────┐
+       │   resend    │  → HTML email report (Dutch)
+       └────────────┘
+```
+
+Per repository: fetch the file tree via GitHub API (no clone needed), filter text files, run secret + PII scans in parallel, run dependency scan on manifest files, aggregate findings, optionally pass through DeepSeek, generate report, send email.
 
 ## Project structure
 
@@ -39,81 +75,14 @@ git-guardian/
 ├── package.json
 ├── tsconfig.json
 ├── .env.example
+├── INSTALL.md               # Full installation and deployment guide
 ├── LICENSE                  # EUPL-1.2
 └── README.md
 ```
 
-## Build
+## Getting started
 
-### Prerequisites
-
-- Node.js >= 20
-- npm or pnpm
-- Vercel account (for deploy, KV, and cron)
-- GitHub PAT (read-only, public repos)
-- Resend account + API key
-- DeepSeek API key (optional, owner-scans only)
-
-### Installation
-
-```bash
-git clone https://github.com/rwrw01/Git-Guardian.git
-cd Git-Guardian
-npm install
-```
-
-### Environment variables
-
-Copy the example file and fill in the values:
-
-```bash
-cp .env.example .env.local
-```
-
-| Variable | Purpose |
-|----------|---------|
-| `GITHUB_TOKEN` | GitHub PAT (read-only, public repos) |
-| `DEEPSEEK_API_KEY` | DeepSeek API key (Vercel backend only, never client-side) |
-| `RESEND_API_KEY` | Resend API key |
-| `SCAN_EMAIL_FROM` | Sender email address |
-| `CRON_SECRET` | Vercel cron verification secret |
-| `KV_REST_API_URL` | Vercel KV connection URL |
-| `KV_REST_API_TOKEN` | Vercel KV auth token |
-
-For local testing with Vercel KV: `vercel env pull .env.local`
-
-### Run locally
-
-```bash
-vercel dev
-```
-
-### Type check
-
-```bash
-npx tsc --noEmit
-```
-
-### Testing
-
-```bash
-# One-time scan via API
-curl -X POST http://localhost:3000/api/scan-once \
-  -H "Content-Type: application/json" \
-  -d '{"githubUsername": "your-username", "email": "your@email.com"}'
-
-# Simulate cron
-curl -X POST http://localhost:3000/api/scan \
-  -H "authorization: Bearer ${CRON_SECRET}"
-```
-
-### Deploy
-
-```bash
-vercel deploy --prod
-```
-
-Vercel cron runs automatically daily at 06:00 UTC after deployment.
+See **[INSTALL.md](INSTALL.md)** for the full installation, configuration, and deployment guide.
 
 ## Dependencies and licenses
 
@@ -146,7 +115,7 @@ Vercel cron runs automatically daily at 06:00 UTC after deployment.
 
 ### Inspiration sources (not direct dependencies)
 
-Our scan patterns and strategies are based on best practices from:
+Scan patterns and strategies are based on best practices from:
 
 | Tool | License | What we adopt |
 |------|---------|---------------|
