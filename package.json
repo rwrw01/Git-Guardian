@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@upstash/redis": "^1.34.0",
+    "ioredis": "^5.10.0",
     "next": "^16.1.0",
     "next-auth": "^5.0.0-beta.30",
     "react": "^19.0.0",
@@ -18,6 +19,7 @@
     "zod": "^4.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -68,9 +68,7 @@ export const EnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   SCAN_EMAIL_FROM: z.string().email(),
   CRON_SECRET: z.string().min(1),
-  KV_REST_API_URL: z.string().url().optional(),
-  KV_REST_API_TOKEN: z.string().min(1).optional(),
-  REDIS_URL: z.string().min(1).optional(),
+  REDIS_URL: z.string().min(1),
   DEEPSEEK_API_KEY: z.string().optional(),
 });
 

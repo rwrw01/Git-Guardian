@@ -1,54 +1,102 @@
-import { Redis } from "@upstash/redis";
+import IORedis from "ioredis";
 
 // ---------------------------------------------------------------------------
-// Central Redis client — supports both KV_REST_API_* and REDIS_URL env vars
+// Central Redis client — wraps ioredis with a simple key-value interface
+// Supports REDIS_URL (Vercel Redis / Redis Labs) connection strings
 // ---------------------------------------------------------------------------
 
-let redis: Redis | null = null;
+let client: IORedis | null = null;
 
-/**
- * Parse a redis(s):// URL into Upstash REST credentials.
- * Vercel Redis (powered by Upstash) provides REDIS_URL as:
- *   rediss://default:TOKEN@HOSTNAME:PORT
- * The Upstash REST API lives at https://HOSTNAME with the same TOKEN.
- *
- * @param redisUrl - Connection string from REDIS_URL
- * @returns Object with url and token for @upstash/redis
- */
-function parseRedisUrl(redisUrl: string): { url: string; token: string } {
-  const parsed = new URL(redisUrl);
-  const token = parsed.password;
-  const url = `https://${parsed.hostname}`;
+function getClient(): IORedis {
+  if (client) return client;
 
-  if (!token) {
-    throw new Error(
-      "REDIS_URL does not contain a password (expected rediss://default:TOKEN@HOST:PORT)",
-    );
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    throw new Error("Missing REDIS_URL environment variable");
   }
 
-  return { url, token };
+  client = new IORedis(url, {
+    maxRetriesPerRequest: 3,
+    lazyConnect: true,
+  });
+
+  return client;
 }
 
-export function getRedis(): Redis {
-  if (redis) return redis;
+// ---------------------------------------------------------------------------
+// Simple wrapper that matches the interface used by subscribers, audit-log,
+// and scan-store modules (previously @upstash/redis)
+// ---------------------------------------------------------------------------
 
-  // Prefer explicit REST credentials (legacy KV_REST_API_* vars)
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-    return redis;
-  }
+export const redis = {
+  async get<T>(key: string): Promise<T | null> {
+    const val = await getClient().get(key);
+    if (val === null) return null;
+    try {
+      return JSON.parse(val) as T;
+    } catch {
+      return val as unknown as T;
+    }
+  },
 
-  // Fall back to REDIS_URL from Vercel Redis integration
-  if (process.env.REDIS_URL) {
-    const { url, token } = parseRedisUrl(process.env.REDIS_URL);
-    redis = new Redis({ url, token });
-    return redis;
-  }
+  async set(
+    key: string,
+    value: unknown,
+    options?: { ex?: number },
+  ): Promise<void> {
+    const serialized = typeof value === "string" ? value : JSON.stringify(value);
+    if (options?.ex) {
+      await getClient().set(key, serialized, "EX", options.ex);
+    } else {
+      await getClient().set(key, serialized);
+    }
+  },
 
-  throw new Error(
-    "Missing Redis configuration: set KV_REST_API_URL + KV_REST_API_TOKEN, or REDIS_URL",
-  );
+  async del(key: string): Promise<number> {
+    return getClient().del(key);
+  },
+
+  async scan(
+    cursor: string,
+    options: { match: string; count: number },
+  ): Promise<[string, string[]]> {
+    const [nextCursor, keys] = await getClient().scan(
+      Number(cursor),
+      "MATCH",
+      options.match,
+      "COUNT",
+      options.count,
+    );
+    return [String(nextCursor), keys];
+  },
+
+  async zadd(
+    key: string,
+    entry: { score: number; member: string },
+  ): Promise<void> {
+    await getClient().zadd(key, entry.score, entry.member);
+  },
+
+  async zrange<T>(
+    key: string,
+    start: number,
+    stop: number,
+    options?: { rev?: boolean },
+  ): Promise<T> {
+    let result: string[];
+    if (options?.rev) {
+      result = await getClient().zrevrange(key, start, stop);
+    } else {
+      result = await getClient().zrange(key, start, stop);
+    }
+    return result as unknown as T;
+  },
+
+  async zcard(key: string): Promise<number> {
+    return getClient().zcard(key);
+  },
+};
+
+export function getRedis(): typeof redis {
+  return redis;
 }
