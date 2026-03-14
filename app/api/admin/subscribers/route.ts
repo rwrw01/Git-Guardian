@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../src/auth";
-import { listSubscribers, addSubscriber, removeSubscriber } from "../../src/subscribers";
-import { logAudit } from "../../src/audit-log";
+import { auth } from "../../../../src/auth";
+import { listSubscribers, addSubscriber, removeSubscriber } from "../../../../src/subscribers";
+import { logAudit } from "../../../../src/audit-log";
 
 export const runtime = "nodejs";
 

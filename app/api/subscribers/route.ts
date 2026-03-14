@@ -5,7 +5,7 @@ import {
   addSubscriber,
   removeSubscriber,
   verifyUnsubscribeToken,
-} from "../src/subscribers";
+} from "../../../src/subscribers";
 
 // ---------------------------------------------------------------------------
 // Subscriber CRUD — GET/POST/DELETE /api/subscribers

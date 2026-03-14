@@ -1,17 +1,17 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { ScanOnceInput } from "../src/types";
-import { listPublicRepos, getRepoTree, getFileContent } from "../src/github";
-import { scanForSecrets } from "../src/secrets";
-import { scanForPii } from "../src/pii";
-import { scanForDependencyVulns } from "../src/dependencies";
-import { buildReport } from "../src/reporter";
-import { sendReportEmail } from "../src/email";
+import { ScanOnceInput } from "../../../src/types";
+import { listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
+import { scanForSecrets } from "../../../src/secrets";
+import { scanForPii } from "../../../src/pii";
+import { scanForDependencyVulns } from "../../../src/dependencies";
+import { buildReport } from "../../../src/reporter";
+import { sendReportEmail } from "../../../src/email";
 import {
   addSubscriber,
   getSubscriber,
   generateUnsubscribeToken,
-} from "../src/subscribers";
+} from "../../../src/subscribers";
 import { Redis } from "@upstash/redis";
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
   try {
     // Scan all public repos (no DeepSeek)
     const repos = await listPublicRepos(githubUsername);
-    const allFindings: import("../src/types").Finding[] = [];
+    const allFindings: import("../../../src/types").Finding[] = [];
 
     for (const repo of repos) {
       try {
