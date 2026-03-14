@@ -80,8 +80,9 @@ function findingsTable(findings: Finding[]): string {
       (f) => `<tr>
       <td>${severityBadge(f.severity)}</td>
       <td>${f.category}</td>
+      <td><code>${f.repo}</code></td>
       <td><code>${f.file}:${f.line}</code></td>
-      <td>${f.description}</td>
+      <td>${f.description}${f.maskedValue ? `<br><code style="font-size:12px;color:#6b7280;">${f.maskedValue}</code>` : ""}</td>
       <td>${f.fix}</td>
     </tr>`,
     )
@@ -92,6 +93,7 @@ function findingsTable(findings: Finding[]): string {
       <tr style="border-bottom:2px solid #e5e7eb;text-align:left;">
         <th style="padding:8px;">Ernst</th>
         <th style="padding:8px;">Type</th>
+        <th style="padding:8px;">Repository</th>
         <th style="padding:8px;">Locatie</th>
         <th style="padding:8px;">Beschrijving</th>
         <th style="padding:8px;">Actie</th>
@@ -157,9 +159,9 @@ ${
 
 <h2>Actielijst</h2>
 <ol>
-${critical.map((f) => `<li><strong>[ONMIDDELLIJK]</strong> ${f.description} in <code>${f.file}</code> — ${f.fix}</li>`).join("\n")}
-${high.map((f) => `<li><strong>[DEZE WEEK]</strong> ${f.description} in <code>${f.file}</code> — ${f.fix}</li>`).join("\n")}
-${medium.map((f) => `<li><strong>[GEPLAND]</strong> ${f.description} in <code>${f.file}</code> — ${f.fix}</li>`).join("\n")}
+${critical.map((f) => `<li><strong>[ONMIDDELLIJK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
+${high.map((f) => `<li><strong>[DEZE WEEK]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
+${medium.map((f) => `<li><strong>[GEPLAND]</strong> ${f.description} in <code>${f.repo}/${f.file}</code> — ${f.fix}</li>`).join("\n")}
 </ol>
 
 <hr style="margin-top:40px;border:none;border-top:1px solid #e5e7eb;">
