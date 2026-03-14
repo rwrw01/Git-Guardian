@@ -1,23 +1,82 @@
 import type { Finding } from "./types";
 
 // ---------------------------------------------------------------------------
-// DeepSeek AI analysis — owner-only, for deeper code inspection
+// DeepSeek Reasoner — owner-only, senior security specialist analysis
+// Uses deepseek-reasoner (thinking mode) for chain-of-thought reasoning
 // ---------------------------------------------------------------------------
 
 const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
-const MODEL = "deepseek-chat";
-const MAX_INPUT_TOKENS = 4000;
-const MAX_OUTPUT_TOKENS = 1000;
+const MODEL = "deepseek-reasoner";
 
 interface DeepSeekResponse {
   choices: Array<{
-    message: { content: string };
+    message: {
+      reasoning_content?: string;
+      content: string;
+    };
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// System prompt — based on rwrw01-security-audit skill
+// ---------------------------------------------------------------------------
+
+const SYSTEM_PROMPT = `Je bent een senior security engineer met 15+ jaar ervaring in applicatiebeveiliging, penetratietesten en code review. Je specialisaties zijn:
+
+- OWASP Top 10 analyse en mitigatie
+- Secret detection en credential management
+- Dependency vulnerability assessment (CVE analyse, CVSS scoring)
+- Nederlandse privacy wetgeving (AVG/GDPR) en PII bescherming
+- Defense-in-depth architectuur
+- Supply chain security
+
+Je voert een security-in-depth analyse uit op automatische scanresultaten van publieke GitHub repositories.
+
+## Werkwijze
+
+### Stap 1: Validatie van bevindingen
+Per finding beoordeel je:
+- **TRUE POSITIVE of FALSE POSITIVE** — met onderbouwing waarom
+- **Ernst inschatting** — klopt de severity classificatie? Moet deze hoger of lager?
+- **Context** — is dit een test/voorbeeld bestand, of productie code?
+
+### Stap 2: Gemiste risico's
+Identificeer aanvullende risico's die de regex-scanner gemist kan hebben:
+- Hardcoded credentials in variabelen (niet in key=value format)
+- Base64/hex encoded secrets
+- Credentials in URL parameters
+- Onveilige configuratie patronen
+- Business logic kwetsbaarheden zichtbaar in de code
+
+### Stap 3: OWASP Top 10 quick scan
+Beoordeel op basis van de code context:
+- A01 Broken Access Control — ontbrekende autorisatie
+- A02 Cryptographic Failures — zwakke encryptie, onveilige key management
+- A03 Injection — SQL/command/XSS kwetsbaarheden
+- A05 Security Misconfiguration — debug mode, verbose errors, default credentials
+
+### Stap 4: Prioritering en actielijst
+Geef een geprioriteerde actielijst:
+- **ONMIDDELLIJK** — actieve credential leaks, kritieke kwetsbaarheden
+- **DEZE WEEK** — hoge risico's die exploiteerbaar zijn
+- **GEPLAND** — verbeterpunten en hardening
+
+## Rapportformat
+Rapport in het **Nederlands**. Per bevinding vermeld:
+- Locatie (bestand:regelnummer)
+- Beschrijving van het probleem
+- Impact — wat een aanvaller kan bereiken
+- Concrete oplossing
+- Referentie (CWE/OWASP nummer)`;
+
+// ---------------------------------------------------------------------------
+// Analyse entry point
+// ---------------------------------------------------------------------------
+
 /**
- * Send findings + code context to DeepSeek for verification and deeper analysis.
- * Returns enriched analysis text to append to the report.
+ * Send findings + code context to DeepSeek Reasoner for deep security analysis.
+ * Uses chain-of-thought reasoning for thorough assessment.
+ * Returns the analysis text (final answer, not the reasoning chain).
  * Returns null if DeepSeek is not configured or the call fails.
  */
 export async function analyzeWithDeepSeek(
@@ -29,30 +88,22 @@ export async function analyzeWithDeepSeek(
   if (findings.length === 0) return null;
 
   const findingSummary = findings
-    .slice(0, 20) // Limit to top 20 findings
+    .slice(0, 20)
     .map(
       (f) =>
-        `[${f.severity}] ${f.category} in ${f.file}:${f.line} — ${f.description}`,
+        `[${f.severity}] ${f.category} in ${f.file}:${f.line} — ${f.description}${f.maskedValue ? ` (waarde: ${f.maskedValue})` : ""}`,
     )
     .join("\n");
 
-  // Truncate code context to fit token budget
-  const truncatedContext = codeContext.slice(0, MAX_INPUT_TOKENS * 3);
+  const userMessage = `## Scanresultaten om te analyseren
 
-  const prompt = `You are a security analyst reviewing scan results for a public GitHub repository.
-
-## Findings from automated scan:
+### Bevindingen van automatische scanner (${findings.length} totaal):
 ${findingSummary}
 
-## Code context (excerpts):
-${truncatedContext}
+### Code context (fragmenten uit gescande bestanden):
+${codeContext.slice(0, 12000)}
 
-## Your task:
-1. For each finding, assess if it is a TRUE POSITIVE or likely FALSE POSITIVE. Explain why.
-2. Identify any ADDITIONAL risks the regex-based scanner may have missed (hardcoded credentials in variables, encoded secrets, suspicious patterns).
-3. Prioritize: which findings need IMMEDIATE action?
-
-Respond in a structured format. Be concise. Focus on actionable advice.`;
+Analyseer deze bevindingen volgens je werkwijze. Geef een volledig rapport in het Nederlands.`;
 
   try {
     const res = await fetch(DEEPSEEK_API, {
@@ -63,9 +114,11 @@ Respond in a structured format. Be concise. Focus on actionable advice.`;
       },
       body: JSON.stringify({
         model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: MAX_OUTPUT_TOKENS,
-        temperature: 0.1,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 4096,
       }),
     });
 
@@ -75,7 +128,18 @@ Respond in a structured format. Be concise. Focus on actionable advice.`;
     }
 
     const data = (await res.json()) as DeepSeekResponse;
-    return data.choices[0]?.message?.content ?? null;
+    const choice = data.choices[0];
+
+    if (!choice) return null;
+
+    // Log reasoning chain length for monitoring (don't include in report)
+    if (choice.message.reasoning_content) {
+      console.log(
+        `[deepseek] Reasoning chain: ${choice.message.reasoning_content.length} chars`,
+      );
+    }
+
+    return choice.message.content ?? null;
   } catch (error) {
     console.error(`[deepseek] Error: ${String(error)}`);
     return null;
