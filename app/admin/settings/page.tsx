@@ -208,10 +208,8 @@ export default function SettingsPage() {
               "CRON_SECRET",
               "REDIS_URL",
               "DEEPSEEK_API_KEY",
-              "GITHUB_CLIENT_ID",
-              "GITHUB_CLIENT_SECRET",
               "AUTH_SECRET",
-              "ADMIN_GITHUB_USERS",
+              "ADMIN_EMAILS",
             ].map((name) => (
               <tr key={name}>
                 <td style={{ padding: "4px 16px 4px 0", color: "#858585", fontFamily: "monospace", fontSize: 12 }}>
@@ -232,9 +230,9 @@ export default function SettingsPage() {
           Security
         </h2>
         <ul style={{ fontSize: 13, color: "#cccccc", lineHeight: 2, paddingLeft: 20 }}>
-          <li>Authentication: <span style={{ color: "#9cdcfe" }}>GitHub OAuth (OIDC)</span></li>
-          <li>Session: <span style={{ color: "#9cdcfe" }}>JWT, 8-hour max age</span></li>
-          <li>Access control: <span style={{ color: "#9cdcfe" }}>Whitelist-based (ADMIN_GITHUB_USERS)</span></li>
+          <li>Authentication: <span style={{ color: "#9cdcfe" }}>Magic-link e-mail (eenmalig, 10 min geldig)</span></li>
+          <li>Session: <span style={{ color: "#9cdcfe" }}>Signed cookie, 8 uur max</span></li>
+          <li>Access control: <span style={{ color: "#9cdcfe" }}>E-mail whitelist (ADMIN_EMAILS)</span></li>
           <li>Audit logging: <span style={{ color: "#6a9955" }}>Active — all admin actions logged</span></li>
           <li>API secrets: <span style={{ color: "#6a9955" }}>Backend-only, never client-side</span></li>
         </ul>

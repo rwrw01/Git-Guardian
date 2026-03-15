@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useCallback } from "react";
 
 const NAV_ITEMS = [
@@ -14,11 +13,17 @@ const NAV_ITEMS = [
   { href: "/admin/settings", label: "Settings" },
 ];
 
-export default function AdminNav({ username }: { username: string }) {
+export default function AdminNav({ email }: { email: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   const close = useCallback(() => setOpen(false), []);
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
 
   return (
     <>
@@ -101,9 +106,11 @@ export default function AdminNav({ username }: { username: string }) {
             alignItems: "center",
           }}
         >
-          <span style={{ color: "#ffffff", fontSize: 11 }}>{username}</span>
+          <span style={{ color: "#ffffff", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 130 }}>
+            {email}
+          </span>
           <button
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            onClick={handleSignOut}
             style={{
               background: "none",
               border: "none",
@@ -114,7 +121,7 @@ export default function AdminNav({ username }: { username: string }) {
               padding: 0,
             }}
           >
-            Sign out
+            Uitloggen
           </button>
         </div>
       </nav>
