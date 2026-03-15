@@ -262,16 +262,18 @@ export default function Home() {
         }}
       >
         <p style={{ margin: "0 0 8px 0" }}>
-          <strong style={{ color: "#9ca3af" }}>Git Guardian</strong> is een persoonlijk project van{" "}
-          <strong style={{ color: "#9ca3af" }}>Ralph Wagter</strong>, gratis beschikbaar gesteld aan
-          de community. Aan het gebruik van deze dienst kunnen geen rechten of garanties worden
-          ontleend. De scan is een hulpmiddel &mdash; geen vervanging voor een professionele
-          security audit.
+          <strong style={{ color: "#9ca3af" }}>Git Guardian</strong> is een initiatief van{" "}
+          <a href="https://publicvibes.nl" style={{ color: "#2ea043" }}>Public Vibes</a> &mdash;
+          van idee naar bewijs in uren, niet maanden. Open, soeverein en secure by design.
+          Gratis beschikbaar gesteld aan de community. De scan is een hulpmiddel &mdash; geen
+          vervanging voor een professionele security audit.
         </p>
         <p style={{ margin: 0 }}>
           Open source onder de{" "}
           <a href="https://eupl.eu/" style={{ color: "#2ea043" }}>EUPL-1.2</a> licentie &mdash;{" "}
           <a href="https://github.com/rwrw01/Git-Guardian" style={{ color: "#2ea043" }}>Broncode op GitHub</a>
+          {" "}&mdash;{" "}
+          <a href="https://publicvibes.nl" style={{ color: "#2ea043" }}>Public Vibes</a>
           {" "}&mdash;{" "}
           <a href="/contact" style={{ color: "#2ea043" }}>Contact</a>
         </p>
