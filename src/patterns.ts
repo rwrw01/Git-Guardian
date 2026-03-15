@@ -391,6 +391,46 @@ export function isDocumentationContext(
 }
 
 /**
+ * Detect if a matched value sits inside a regex literal, regex constructor,
+ * or pattern definition context. This prevents the scanner from flagging
+ * its own detection patterns as secrets.
+ */
+export function isRegexPatternContext(line: string): boolean {
+  // Line contains a regex literal: /...pattern.../
+  if (/\/(?:[^/\\]|\\.){4,}\/[gimsuy]*/.test(line)) return true;
+
+  // Line contains new RegExp("...") or RegExp("...")
+  if (/RegExp\s*\(/.test(line)) return true;
+
+  // Line defines a regex property: regex: /.../ or pattern: /.../
+  if (/(?:regex|pattern)\s*:\s*\//.test(line)) return true;
+
+  return false;
+}
+
+/**
+ * Detect if a line is inside a multi-line template string that serves as
+ * prompt text, documentation, or descriptive content — not executable code
+ * containing real secrets.
+ */
+export function isPromptOrDescriptionContext(
+  lines: string[],
+  lineIndex: number,
+): boolean {
+  const line = lines[lineIndex];
+
+  // OWASP / CWE / security checklist text mentioning credentials as a category
+  if (/\b(OWASP|CWE|A0[1-9]|security\s*misconfiguration|default\s*credentials)\b/i.test(line)) {
+    return true;
+  }
+
+  // Line is a markdown-style list item inside a template string (prompt text)
+  if (/^\s*-\s+\*?\*?A\d{2}\b/.test(line)) return true;
+
+  return false;
+}
+
+/**
  * Check if an email address is a placeholder/example.
  */
 export function isPlaceholderEmail(email: string): boolean {

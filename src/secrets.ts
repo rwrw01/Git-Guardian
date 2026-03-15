@@ -5,6 +5,8 @@ import {
   SKIP_SECRET_FILE_PATTERNS,
   isPlaceholderValue,
   isDocumentationContext,
+  isRegexPatternContext,
+  isPromptOrDescriptionContext,
 } from "./patterns";
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,12 @@ export function scanFileForSecrets(
 
       // Skip secrets inside markdown code block examples
       if (isDocumentationContext(lines, i, filePath)) continue;
+
+      // Skip matches inside regex literals / pattern definitions (self-scan FP)
+      if (isRegexPatternContext(line)) continue;
+
+      // Skip OWASP/security checklist text mentioning credentials as category
+      if (isPromptOrDescriptionContext(lines, i)) continue;
 
       // For generic patterns, require minimum entropy to reduce false positives
       if (

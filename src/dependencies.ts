@@ -16,10 +16,10 @@ function parsePackageJson(content: string): Dependency[] {
     const pkg = JSON.parse(content);
     const deps: Dependency[] = [];
     for (const [name, version] of Object.entries(pkg.dependencies ?? {})) {
-      deps.push({ name, version: String(version).replace(/^[\^~>=<]/, ""), ecosystem: "npm" });
+      deps.push({ name, version: String(version).replace(/^[\^~>=<]+/, ""), ecosystem: "npm" });
     }
     for (const [name, version] of Object.entries(pkg.devDependencies ?? {})) {
-      deps.push({ name, version: String(version).replace(/^[\^~>=<]/, ""), ecosystem: "npm" });
+      deps.push({ name, version: String(version).replace(/^[\^~>=<]+/, ""), ecosystem: "npm" });
     }
     return deps;
   } catch {
