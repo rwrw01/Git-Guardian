@@ -44,7 +44,7 @@ services:
       - "traefik.http.routers.gitguardian.rule=Host(`gitguardian.publicvibes.nl`)"
       - "traefik.http.routers.gitguardian.entrypoints=websecure"
       - "traefik.http.routers.gitguardian.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.gitguardian.middlewares=crowdsec@file,security-headers@file,rate-limit@file"
+      - "traefik.http.routers.gitguardian.middlewares=crowdsec@file,csp-gitguardian@file,rate-limit@file"
       - "traefik.http.services.gitguardian.loadbalancer.server.port=3000"
 
   redis-gitguardian:
