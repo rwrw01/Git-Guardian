@@ -7,6 +7,7 @@ import { Suspense } from "react";
 const ERROR_MESSAGES: Record<string, string> = {
   "missing-token": "Ongeldige link — vraag een nieuwe inloglink aan.",
   "invalid-token": "Link verlopen of ongeldig — vraag een nieuwe inloglink aan.",
+  "token-used": "Deze inloglink is al gebruikt. Vraag een nieuwe aan.",
   config: "Serverconfiguratiefout — neem contact op met de beheerder.",
 };
 
