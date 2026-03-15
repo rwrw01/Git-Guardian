@@ -140,23 +140,6 @@ export default function SettingsPage() {
               </tr>
             )}
             <tr>
-              <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Volledig rapport op dag</td>
-              <td>
-                <select
-                  value={config.fullReportDay}
-                  onChange={(e) => setConfig({ ...config, fullReportDay: parseInt(e.target.value, 10) })}
-                  style={{ ...inputStyle, width: 80 }}
-                >
-                  {Array.from({ length: 28 }, (_, d) => (
-                    <option key={d + 1} value={d + 1}>{`${d + 1}e`}</option>
-                  ))}
-                </select>
-                <span style={{ fontSize: 11, color: "#858585", marginLeft: 8 }}>
-                  van de maand (anders: alleen nieuwe bevindingen)
-                </span>
-              </td>
-            </tr>
-            <tr>
               <td style={{ padding: "8px 16px 8px 0", color: "#858585" }}>Admin scan timeout</td>
               <td style={{ fontFamily: "monospace", color: "#b5cea8" }}>300s (5 min) — geen limiet bij handmatige scan</td>
             </tr>

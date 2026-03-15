@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   const [scanUsername, setScanUsername] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState("");
+  const [useDeepseek, setUseDeepseek] = useState(true);
+  const [scanProgress, setScanProgress] = useState("");
   const [warnings, setWarnings] = useState<HealthWarning[]>([]);
 
   const load = useCallback(async () => {
@@ -81,31 +83,49 @@ export default function AdminDashboard() {
   async function triggerScan() {
     if (!scanUsername.trim()) return;
     setScanning(true);
-    setScanResult("Scan gestart... dit kan 1-2 minuten duren.");
+    setScanResult("");
+    setScanProgress("Repositories ophalen...");
+
+    // Progress simulation (scan takes 30-120s)
+    const progressSteps = [
+      { delay: 3000, msg: "Bestanden scannen op secrets..." },
+      { delay: 10000, msg: "Dependency vulnerabilities checken (OSV.dev)..." },
+      { delay: 20000, msg: "PII-detectie uitvoeren..." },
+      { delay: 35000, msg: useDeepseek ? "DeepSeek AI-analyse draaien..." : "Rapport genereren..." },
+      { delay: 60000, msg: "Rapport opslaan en e-mail versturen..." },
+    ];
+    const timers = progressSteps.map((step) =>
+      setTimeout(() => { if (scanning) setScanProgress(step.msg); }, step.delay),
+    );
+
     try {
       const res = await fetch("/api/admin/scans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           githubUsername: scanUsername,
-          useDeepseek: true,
+          useDeepseek,
           sendEmail: true,
         }),
       });
       const result = await res.json();
+      timers.forEach(clearTimeout);
+      setScanProgress("");
+
       if (res.ok) {
         setScanResult(
           `Scan voltooid: ${result.findings} bevindingen in ${result.repos} repos` +
           (result.hasDeepseekAnalysis ? " (incl. AI-analyse)" : "") +
           ". Rapport verzonden per email."
         );
-        // Reload dashboard data to show new findings
         await load();
       } else {
         setScanResult(`Fout: ${result.message ?? result.error}`);
       }
     } catch {
-      setScanResult("Netwerkfout — de scan draait mogelijk nog op de server.");
+      timers.forEach(clearTimeout);
+      setScanProgress("");
+      setScanResult("Netwerkfout — de scan draait mogelijk nog op de server. Check Scan History voor resultaten.");
     }
     setScanning(false);
   }
@@ -221,16 +241,44 @@ export default function AdminDashboard() {
             {scanning ? "Scanning..." : "Run Scan"}
           </button>
         </div>
-        {scanResult && (
+        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 12 }}>
+          <label style={{ fontSize: 12, color: "#858585", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={useDeepseek}
+              onChange={(e) => setUseDeepseek(e.target.checked)}
+              style={{ accentColor: "#2ea043" }}
+            />
+            DeepSeek AI-analyse
+          </label>
+        </div>
+        {/* Scan progress */}
+        {scanning && scanProgress && (
           <div style={{
             marginTop: 8,
             fontSize: 12,
-            color: scanResult.startsWith("Fout") ? "#f44747" : scanResult.startsWith("Scan gestart") ? "#e2c08d" : "#6a9955",
-            padding: "6px 8px",
+            color: "#e2c08d",
+            padding: "8px 10px",
+            background: "rgba(255,255,255,0.03)",
+            borderRadius: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}>
+            <span style={{ display: "inline-block", animation: "spin 1s linear infinite", fontSize: 14 }}>{"\u23F3"}</span>
+            {scanProgress}
+          </div>
+        )}
+        {/* Scan result */}
+        {scanResult && !scanning && (
+          <div style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: scanResult.startsWith("Fout") ? "#f44747" : "#6a9955",
+            padding: "8px 10px",
             background: "rgba(255,255,255,0.03)",
             borderRadius: 2,
           }}>
-            {scanning && <span style={{ marginRight: 8 }}>⏳</span>}
             {scanResult}
           </div>
         )}
