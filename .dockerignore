@@ -1,0 +1,9 @@
+.git
+node_modules
+.next
+.env*
+*.md
+!README.md
+tests/
+scripts/
+.vercel

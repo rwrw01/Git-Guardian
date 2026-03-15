@@ -177,7 +177,7 @@ export async function sendReportEmail(
   let html = renderReportHtml(report, deepseekAnalysis);
 
   const baseUrl = process.env.APP_URL
-    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    ?? "http://localhost:3000";
   const unsubscribeUrl = `${baseUrl}/api/subscribers?action=unsubscribe&token=${encodeURIComponent(unsubscribeToken)}`;
   html = html.replace(
     "{{UNSUBSCRIBE_LINK}}",

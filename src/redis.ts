@@ -16,8 +16,9 @@ function getClient(): IORedis {
   }
 
   client = new IORedis(url, {
-    maxRetriesPerRequest: 3,
-    lazyConnect: true,
+    maxRetriesPerRequest: 10,
+    lazyConnect: false,
+    enableReadyCheck: true,
   });
 
   return client;

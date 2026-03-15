@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         const tree = await getRepoTree(githubUsername, repo.name, repo.default_branch);
         const files: Array<{ path: string; content: string }> = [];
 
-        const BATCH_SIZE = 10;
+        const BATCH_SIZE = 25;
         for (let i = 0; i < tree.length; i += BATCH_SIZE) {
           const batch = tree.slice(i, i + BATCH_SIZE);
           const results = await Promise.allSettled(

@@ -1,0 +1,88 @@
+services:
+  gitguardian:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gitguardian
+    networks:
+      - net-fe-gitguardian
+      - gg-internal
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis-gitguardian:6379
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev
+      - /app/.next/cache:noexec,nosuid,nodev
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          pids: 100
+    restart: on-failure:5
+    depends_on:
+      redis-gitguardian:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=net-fe-gitguardian"
+      - "traefik.http.routers.gitguardian.rule=Host(`gitguardian.publicvibes.nl`)"
+      - "traefik.http.routers.gitguardian.entrypoints=websecure"
+      - "traefik.http.routers.gitguardian.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.gitguardian.middlewares=crowdsec@file,security-headers@file,rate-limit@file"
+      - "traefik.http.services.gitguardian.loadbalancer.server.port=3000"
+
+  redis-gitguardian:
+    image: redis:7-alpine
+    container_name: redis-gitguardian
+    networks:
+      - gg-internal
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,nodev
+    volumes:
+      - redis-data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          pids: 50
+    restart: on-failure:5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  net-fe-gitguardian:
+    external: true
+  gg-internal:
+    internal: true
+
+volumes:
+  redis-data:
