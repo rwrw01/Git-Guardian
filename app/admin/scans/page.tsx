@@ -98,6 +98,61 @@ export default function ScansPage() {
     return markedFps.has(findingHash(f.repo, f.file, f.description));
   }
 
+  async function bulkMarkFp(findings: Finding[], reason: string) {
+    let count = 0;
+    for (const f of findings) {
+      if (isFp(f)) continue;
+      const hash = findingHash(f.repo, f.file, f.description);
+      const res = await fetch("/api/admin/false-positives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          findingHash: hash,
+          repo: f.repo,
+          file: f.file,
+          pattern: f.description,
+          reason,
+        }),
+      });
+      if (res.ok) {
+        setMarkedFps((prev) => new Set([...prev, hash]));
+        count++;
+      }
+    }
+    setFpMessage(`${count} bevindingen gemarkeerd als false positive`);
+    setTimeout(() => setFpMessage(""), 5000);
+  }
+
+  async function markFileAsFp(file: string) {
+    if (!selected) return;
+    const fileFindings = selected.findings.filter((f) => f.file === file && !isFp(f));
+    if (fileFindings.length === 0) return;
+    const reason = prompt(`Alle ${fileFindings.length} bevindingen in ${file} markeren als FP. Reden:`);
+    if (!reason) return;
+    await bulkMarkFp(fileFindings, reason);
+  }
+
+  async function markPatternAsFp(description: string) {
+    if (!selected) return;
+    const patternFindings = selected.findings.filter((f) => f.description === description && !isFp(f));
+    if (patternFindings.length === 0) return;
+    const reason = prompt(`Alle ${patternFindings.length} "${description}" bevindingen markeren als FP. Reden:`);
+    if (!reason) return;
+    await bulkMarkFp(patternFindings, reason);
+  }
+
+  // Group findings by file for bulk actions
+  function getFileGroups(): Map<string, Finding[]> {
+    if (!selected) return new Map();
+    const groups = new Map<string, Finding[]>();
+    for (const f of selected.findings) {
+      const existing = groups.get(f.file) ?? [];
+      existing.push(f);
+      groups.set(f.file, existing);
+    }
+    return groups;
+  }
+
   return (
     <div>
       <h1 style={{ fontSize: 20, color: "#cccccc", fontWeight: 400, marginBottom: 24 }}>
@@ -188,6 +243,38 @@ export default function ScansPage() {
                 </div>
               )}
 
+              {/* Bulk FP actions */}
+              {selected.findings.length > 0 && (
+                <div style={{ marginBottom: 12, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 11, color: "#858585", marginRight: 4 }}>Bulk FP:</span>
+                  {Array.from(getFileGroups().entries())
+                    .filter(([, fs]) => fs.some((f) => !isFp(f)))
+                    .slice(0, 8)
+                    .map(([file, fs]) => (
+                      <button
+                        key={file}
+                        onClick={() => markFileAsFp(file)}
+                        title={`Markeer alle ${fs.length} bevindingen in ${file} als FP`}
+                        style={{
+                          padding: "2px 6px",
+                          fontSize: 10,
+                          background: "transparent",
+                          border: "1px solid #3c3c3c",
+                          color: "#858585",
+                          borderRadius: 2,
+                          cursor: "pointer",
+                          maxWidth: 200,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {file.split("/").pop()} ({fs.filter((f) => !isFp(f)).length})
+                      </button>
+                    ))}
+                </div>
+              )}
+
               <div className="table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
@@ -225,25 +312,43 @@ export default function ScansPage() {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: "6px 8px" }}>
+                        <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                           {fp ? (
                             <span style={{ fontSize: 10, color: "#858585" }}>FP</span>
                           ) : (
-                            <button
-                              onClick={() => markAsFp(f)}
-                              title="Markeer als false positive"
-                              style={{
-                                padding: "2px 6px",
-                                fontSize: 10,
-                                background: "transparent",
-                                border: "1px solid #555",
-                                color: "#858585",
-                                borderRadius: 2,
-                                cursor: "pointer",
-                              }}
-                            >
-                              FP
-                            </button>
+                            <>
+                              <button
+                                onClick={() => markAsFp(f)}
+                                title="Markeer deze finding als false positive"
+                                style={{
+                                  padding: "2px 6px",
+                                  fontSize: 10,
+                                  background: "transparent",
+                                  border: "1px solid #555",
+                                  color: "#858585",
+                                  borderRadius: 2,
+                                  cursor: "pointer",
+                                  marginRight: 2,
+                                }}
+                              >
+                                FP
+                              </button>
+                              <button
+                                onClick={() => markPatternAsFp(f.description)}
+                                title={`Markeer alle "${f.description}" als FP`}
+                                style={{
+                                  padding: "2px 6px",
+                                  fontSize: 10,
+                                  background: "transparent",
+                                  border: "1px solid #555",
+                                  color: "#858585",
+                                  borderRadius: 2,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Alle
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>

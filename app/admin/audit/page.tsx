@@ -11,6 +11,7 @@ interface AuditEntry {
 }
 
 const ACTION_COLORS: Record<string, string> = {
+  LOGIN: "#2ea043",
   SCAN_MANUAL: "#3794ff",
   SCAN_COMPLETE: "#6a9955",
   SCAN_ERROR: "#f44747",
@@ -18,6 +19,7 @@ const ACTION_COLORS: Record<string, string> = {
   SUBSCRIBER_REMOVE: "#cd9731",
   FP_MARK: "#c586c0",
   FP_UNMARK: "#c586c0",
+  CONFIG_UPDATE: "#dcdcaa",
   EXPORT: "#9cdcfe",
 };
 
