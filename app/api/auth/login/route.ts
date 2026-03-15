@@ -34,9 +34,8 @@ export async function POST(request: NextRequest) {
 
   const { token } = generateMagicToken(email);
 
-  const baseUrl = process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
+  const baseUrl = process.env.APP_URL
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   const verifyUrl = `${baseUrl}/api/auth/verify?token=${encodeURIComponent(token)}`;
 
   const from = process.env.SCAN_EMAIL_FROM;
