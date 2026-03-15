@@ -2,7 +2,7 @@
 name: rwrw01-ux-review
 description: Perform a UX design review using Playwright by visiting and testing the website against Nielsen heuristics, responsiveness, and user journeys.
 argument-hint: "[URL]"
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # UX Design Review met Playwright

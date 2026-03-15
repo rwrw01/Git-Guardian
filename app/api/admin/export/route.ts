@@ -1,24 +1,17 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../../../src/auth";
+import { requireAdmin } from "../../../../src/auth";
 import { getScanReport } from "../../../../src/scan-store";
 import { renderReportHtml } from "../../../../src/reporter";
 import { logAudit } from "../../../../src/audit-log";
 
 export const runtime = "nodejs";
 
-async function getSession() {
-  return auth();
-}
-
 /**
  * GET: export a scan report as HTML or JSON
  */
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -33,7 +26,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Report not found" }, { status: 404 });
   }
 
-  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
   await logAudit(actor, "EXPORT", id, `Exported report ${id} as ${format}`);
 
   if (format === "html") {

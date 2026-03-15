@@ -2,7 +2,7 @@
 name: rwrw01-documentation
 description: Generate complete user and admin documentation in Dutch for the current project.
 argument-hint: "[scope: user|admin|both]"
-disable-model-invocation: true
+disable-model-invocation: false
 ---
 
 # Documentatie Genereren (Nederlands)

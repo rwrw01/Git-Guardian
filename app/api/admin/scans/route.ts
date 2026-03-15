@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../../../src/auth";
+import { requireAdmin } from "../../../../src/auth";
 import { getScanReports, getScanReport, countScanReports, getConfig, setConfig } from "../../../../src/scan-store";
 import { logAudit } from "../../../../src/audit-log";
 import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
@@ -17,18 +17,11 @@ import type { Finding } from "../../../../src/types";
 
 export const runtime = "nodejs";
 
-async function getSession() {
-  return auth();
-}
-
 /**
  * GET: list scan history or get single report
  */
 export async function GET(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const { searchParams } = new URL(request.url);
 
@@ -87,17 +80,12 @@ export async function GET(request: NextRequest) {
  * PUT: update scan configuration
  */
 export async function PUT(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const body = await request.json().catch(() => null);
   if (!body) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-
-  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
 
   if (["daily", "weekly", "monthly"].includes(body.scanFrequency)) {
     await setConfig("scan-frequency", body.scanFrequency);
@@ -121,17 +109,12 @@ export async function PUT(request: NextRequest) {
  * POST: trigger a manual scan for a specific username
  */
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const body = await request.json().catch(() => null);
   if (!body?.githubUsername) {
     return NextResponse.json({ error: "githubUsername is required" }, { status: 400 });
   }
-
-  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
   const targetUsername = body.githubUsername as string;
   const useDeepseek = body.useDeepseek ?? false;
 

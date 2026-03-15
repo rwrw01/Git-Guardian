@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { auth } from "../../../../src/auth";
+import { requireAdmin } from "../../../../src/auth";
 import {
   listFalsePositives,
   markFalsePositive,
@@ -11,25 +11,15 @@ import { logAudit } from "../../../../src/audit-log";
 
 export const runtime = "nodejs";
 
-async function getSession() {
-  return auth();
-}
-
-export async function GET(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET() {
+  await requireAdmin();
 
   const fps = await listFalsePositives();
   return NextResponse.json({ falsePositives: fps, count: fps.length });
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const body = await request.json().catch(() => null);
   if (!body?.findingHash || !body?.repo || !body?.file || !body?.reason) {
@@ -38,8 +28,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-
-  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
 
   const fp: FalsePositive = {
     findingHash: body.findingHash,
@@ -58,17 +46,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const session = await getSession();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const actor = await requireAdmin();
 
   const body = await request.json().catch(() => null);
   if (!body?.findingHash) {
     return NextResponse.json({ error: "findingHash is required" }, { status: 400 });
   }
-
-  const actor = (session.user as Record<string, unknown>).githubUsername as string ?? "unknown";
 
   await unmarkFalsePositive(body.findingHash);
   await logAudit(actor, "FP_UNMARK", body.findingHash, "Removed false positive marker");
