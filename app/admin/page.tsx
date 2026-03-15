@@ -7,6 +7,14 @@ interface HealthWarning {
   message: string;
 }
 
+interface RunningScan {
+  username: string;
+  startedBy: string;
+  startedAt: string;
+  useDeepseek: boolean;
+  status: string;
+}
+
 interface DashboardData {
   subscribers: number;
   totalScans: number;
@@ -31,6 +39,8 @@ export default function AdminDashboard() {
   const [useDeepseek, setUseDeepseek] = useState(true);
   const [scanProgress, setScanProgress] = useState("");
   const [warnings, setWarnings] = useState<HealthWarning[]>([]);
+  const [runningScans, setRunningScans] = useState<RunningScan[]>([]);
+  const [queuedCount, setQueuedCount] = useState(0);
 
   const load = useCallback(async () => {
     const [subRes, scanRes] = await Promise.all([
@@ -63,7 +73,7 @@ export default function AdminDashboard() {
       lastDeepseekAnalysis: latestReport?.deepseekAnalysis as string | null | undefined,
     });
 
-    // Health checks
+    // Health checks + running scans
     try {
       const healthRes = await fetch("/api/admin/scans?health=true");
       const health = await healthRes.json();
@@ -75,10 +85,28 @@ export default function AdminDashboard() {
         w.push({ type: "github", message: `GitHub API: ${health.githubRateRemaining}/${health.githubRateLimit} requests over. Reset over ${health.githubRateResetMin} min.` });
       }
       setWarnings(w);
+      setRunningScans(health.runningScans ?? []);
+      setQueuedCount(health.queuedCount ?? 0);
     } catch { /* ignore health check errors */ }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    // Poll for running scans every 5 seconds
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/admin/scans?health=true");
+        const health = await res.json();
+        setRunningScans(health.runningScans ?? []);
+        setQueuedCount(health.queuedCount ?? 0);
+        // If scans just finished, reload all data
+        if ((health.runningScans ?? []).length === 0 && runningScans.length > 0) {
+          load();
+        }
+      } catch { /* ignore */ }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   async function triggerScan() {
     if (!scanUsername.trim()) return;
@@ -142,6 +170,46 @@ export default function AdminDashboard() {
       <h1 style={{ fontSize: 20, color: "#cccccc", fontWeight: 400, marginBottom: 24 }}>
         Dashboard
       </h1>
+
+      {/* Running scans */}
+      {runningScans.length > 0 && (
+        <div
+          style={{
+            background: "#1a3a1a",
+            border: "1px solid #2ea043",
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#86efac",
+          }}
+        >
+          <span style={{ marginRight: 8 }}>{"\u23F3"}</span>
+          <strong>Scan actief:</strong>{" "}
+          {runningScans.map((s) => {
+            const elapsed = Math.round((Date.now() - new Date(s.startedAt).getTime()) / 1000);
+            return `${s.username} (${elapsed}s${s.useDeepseek ? ", DeepSeek" : ""})`;
+          }).join(", ")}
+        </div>
+      )}
+
+      {/* Queued scans */}
+      {queuedCount > 0 && (
+        <div
+          style={{
+            background: "#172554",
+            border: "1px solid #1e3a5f",
+            borderRadius: 4,
+            padding: "10px 16px",
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#93c5fd",
+          }}
+        >
+          <span style={{ marginRight: 8 }}>{"\u{1F4CB}"}</span>
+          <strong>{queuedCount} scan{queuedCount !== 1 ? "s" : ""} in de wachtrij</strong> — worden verwerkt bij volgende cron run
+        </div>
+      )}
 
       {/* Health warnings */}
       {warnings.map((w, i) => (

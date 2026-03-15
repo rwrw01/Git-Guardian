@@ -41,11 +41,28 @@ export async function GET(request: NextRequest) {
       }
     } catch { /* Redis info not available */ }
 
+    // Get running scans
+    const runningScans: Array<Record<string, unknown>> = [];
+    let cursor = "0";
+    do {
+      const [next, keys] = await redis.scan(cursor, { match: "running-scan:*", count: 20 });
+      cursor = next;
+      for (const k of keys) {
+        const val = await redis.get<Record<string, unknown>>(k);
+        if (val) runningScans.push(val);
+      }
+    } while (cursor !== "0");
+
+    // Get queued scans count
+    const queuedCount = await redis.zcard("scan-queue");
+
     return NextResponse.json({
       redisUsagePercent,
       githubRateRemaining: rateStatus.remaining,
       githubRateLimit: rateStatus.limit,
       githubRateResetMin: rateStatus.resetMinutes,
+      runningScans,
+      queuedCount,
     });
   }
 
@@ -120,6 +137,17 @@ export async function POST(request: NextRequest) {
 
   await logAudit(actor, "SCAN_MANUAL", targetUsername, `Manual scan triggered${useDeepseek ? " with DeepSeek" : ""}`);
 
+  // Track running scan in Redis (visible across page navigation)
+  const redis = getRedis();
+  const scanKey = `running-scan:${targetUsername}`;
+  await redis.set(scanKey, {
+    username: targetUsername,
+    startedBy: actor,
+    startedAt: new Date().toISOString(),
+    useDeepseek,
+    status: "scanning",
+  }, { ex: 600 }); // Auto-expire after 10 min (safety net)
+
   try {
     const repos = await listPublicRepos(targetUsername);
     const allFindings: Finding[] = [];
@@ -187,6 +215,7 @@ export async function POST(request: NextRequest) {
       await updateLastScan(targetUsername);
     }
 
+    await redis.del(scanKey);
     await logAudit(actor, "SCAN_COMPLETE", targetUsername, `Scan complete: ${allFindings.length} findings in ${repos.length} repos`);
 
     return NextResponse.json({
@@ -196,6 +225,7 @@ export async function POST(request: NextRequest) {
       hasDeepseekAnalysis: !!deepseekAnalysis,
     });
   } catch (error) {
+    await redis.del(scanKey);
     await logAudit(actor, "SCAN_ERROR", targetUsername, `Scan failed: ${String(error)}`);
     return NextResponse.json({ error: "Scan failed", message: String(error) }, { status: 500 });
   }
