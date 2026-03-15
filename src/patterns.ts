@@ -153,6 +153,63 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     regex: /npm_[A-Za-z0-9]{36}/,
     severity: Severity.CRITICAL,
   },
+
+  // ---------------------------------------------------------------------------
+  // Variable assignment patterns (DeepSeek recommended)
+  // Catches: const apiKey = 'sk_live_...'; const dbPassword = 'hunter2';
+  // ---------------------------------------------------------------------------
+
+  {
+    id: "hardcoded-credential-var",
+    description: "Hardcoded Credential in Variable",
+    regex: /(?:const|let|var|export)\s+(?:api[_-]?key|secret[_-]?key|auth[_-]?token|access[_-]?token|private[_-]?key|db[_-]?pass(?:word)?|jwt[_-]?secret|encryption[_-]?key|signing[_-]?key)\s*=\s*['"]([A-Za-z0-9_\-/+=.]{8,})['"](?:\s*;)?/i,
+    severity: Severity.HIGH,
+  },
+
+  // Insecure fallback: process.env.X || 'hardcoded'
+  {
+    id: "insecure-env-fallback",
+    description: "Insecure Environment Variable Fallback",
+    regex: /process\.env\.\w+\s*\|\|\s*['"]([A-Za-z0-9_\-!@#$%^&*]{6,})['"](?:\s*;)?/,
+    severity: Severity.MEDIUM,
+  },
+
+  // Credentials embedded in URLs (https://key:secret@host)
+  {
+    id: "url-credentials",
+    description: "Credentials in URL",
+    regex: /https?:\/\/[A-Za-z0-9_-]+:[A-Za-z0-9_\-!@#$%^&*]+@[a-zA-Z0-9.-]+/,
+    severity: Severity.HIGH,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Insecure configuration patterns
+  // ---------------------------------------------------------------------------
+
+  {
+    id: "cors-wildcard",
+    description: "CORS Wildcard (Allow All Origins)",
+    regex: /Access-Control-Allow-Origin['":\s]*\*/,
+    severity: Severity.MEDIUM,
+  },
+  {
+    id: "cors-wildcard-code",
+    description: "CORS Wildcard in Code",
+    regex: /(?:cors|origin)\s*[:=]\s*['"]?\*['"]?/i,
+    severity: Severity.MEDIUM,
+  },
+  {
+    id: "debug-mode-production",
+    description: "Debug/Development Mode Enabled",
+    regex: /(?:DEBUG|debug)\s*[:=]\s*['"]?(?:true|1|yes|on)['"]?/,
+    severity: Severity.LOW,
+  },
+  {
+    id: "disable-ssl-verify",
+    description: "SSL Verification Disabled",
+    regex: /(?:rejectUnauthorized|NODE_TLS_REJECT_UNAUTHORIZED|verify_ssl|SSL_VERIFY)\s*[:=]\s*['"]?(?:false|0|no)['"]?/i,
+    severity: Severity.HIGH,
+  },
 ];
 
 // ---------------------------------------------------------------------------

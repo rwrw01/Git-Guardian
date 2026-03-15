@@ -63,9 +63,10 @@ export function scanFileForSecrets(
       // Skip secrets inside markdown code block examples
       if (isDocumentationContext(lines, i, filePath)) continue;
 
-      // For generic patterns, require minimum entropy to reduce false positives
+      // For generic/variable patterns, require minimum entropy to reduce false positives
+      const entropyPatterns = ["generic-api-key", "generic-secret", "hardcoded-credential-var", "insecure-env-fallback"];
       if (
-        (pattern.id === "generic-api-key" || pattern.id === "generic-secret") &&
+        entropyPatterns.includes(pattern.id) &&
         shannonEntropy(matchedValue) < 3.5
       ) {
         continue;

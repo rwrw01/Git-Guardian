@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { Resend } from "resend";
+import { sendGenericEmail } from "../../../src/email";
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
@@ -12,24 +12,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.SCAN_EMAIL_FROM;
-  if (!apiKey || !from) {
-    return NextResponse.json(
-      { error: "E-mailconfiguratie ontbreekt" },
-      { status: 500 },
-    );
-  }
-
-  const resend = new Resend(apiKey);
-
   try {
-    const { error } = await resend.emails.send({
-      from,
-      to: "scan@athide.nl",
-      replyTo: body.email,
-      subject: `[Git Guardian] Contactverzoek van ${body.name}${body.organisation ? ` (${body.organisation})` : ""}`,
-      html: `<h2>Contactverzoek via Git Guardian</h2>
+    const sent = await sendGenericEmail(
+      "scan@athide.nl",
+      `[Git Guardian] Contactverzoek van ${body.name}${body.organisation ? ` (${body.organisation})` : ""}`,
+      `<h2>Contactverzoek via Git Guardian</h2>
 <table style="font-size:14px;border-collapse:collapse;">
   <tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>Naam</strong></td><td>${escapeHtml(body.name)}</td></tr>
   <tr><td style="padding:4px 12px 4px 0;color:#666;"><strong>E-mail</strong></td><td><a href="mailto:${escapeHtml(body.email)}">${escapeHtml(body.email)}</a></td></tr>
@@ -40,10 +27,9 @@ export async function POST(request: NextRequest) {
 <p style="white-space:pre-wrap;">${escapeHtml(body.message)}</p>
 <hr>
 <p style="font-size:12px;color:#999;">Verzonden via het Git Guardian contactformulier</p>`,
-    });
+    );
 
-    if (error) {
-      console.error("[contact] Resend error:", error);
+    if (!sent) {
       return NextResponse.json({ error: "E-mail kon niet worden verzonden" }, { status: 500 });
     }
 

@@ -63,7 +63,7 @@ Geef een geprioriteerde actielijst:
 
 ## Rapportformat
 Rapport in het **Nederlands**. Per bevinding vermeld:
-- Locatie (bestand:regelnummer)
+- Repository en locatie (repo — bestand:regelnummer)
 - Beschrijving van het probleem
 - Impact — wat een aanvaller kan bereiken
 - Concrete oplossing
@@ -91,7 +91,7 @@ export async function analyzeWithDeepSeek(
     .slice(0, 20)
     .map(
       (f) =>
-        `[${f.severity}] ${f.category} in ${f.file}:${f.line} — ${f.description}${f.maskedValue ? ` (waarde: ${f.maskedValue})` : ""}`,
+        `[${f.severity}] ${f.category} in ${f.repo} — ${f.file}:${f.line} — ${f.description}${f.maskedValue ? ` (waarde: ${f.maskedValue})` : ""}`,
     )
     .join("\n");
 
