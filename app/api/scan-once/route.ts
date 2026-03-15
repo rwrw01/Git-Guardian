@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ScanOnceInput } from "../../../src/types";
+import { filterFalsePositives } from "../../../src/scan-store";
 import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../src/github";
 import { scanForSecrets } from "../../../src/secrets";
 import { scanForPii } from "../../../src/pii";
@@ -109,7 +110,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const report = buildReport(githubUsername, repos.length, allFindings);
+    // Filter out findings marked as false positive
+    const filteredFindings = await filterFalsePositives(allFindings);
+    const report = buildReport(githubUsername, repos.length, filteredFindings);
     await addSubscriber(githubUsername, email);
 
     const token = generateUnsubscribeToken(githubUsername);

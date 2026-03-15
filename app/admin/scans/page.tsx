@@ -35,9 +35,12 @@ interface ScanReport {
 }
 
 function findingHash(repo: string, file: string, description: string): string {
-  // Match server-side hash: base64url of "repo:file:description", first 32 chars
+  // Must match server: Buffer.from(str).toString("base64url").slice(0, 32)
   const str = `${repo}:${file}:${description}`;
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").slice(0, 32);
+  const bytes = new TextEncoder().encode(str);
+  let b64 = "";
+  for (const byte of bytes) b64 += String.fromCharCode(byte);
+  return btoa(b64).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "").slice(0, 32);
 }
 
 export default function ScansPage() {

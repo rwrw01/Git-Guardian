@@ -18,6 +18,7 @@ import {
   saveScanReport,
   classifyFindings,
   saveKnownFindings,
+  filterFalsePositives,
   getConfig,
 } from "../../../src/scan-store";
 
@@ -131,10 +132,11 @@ export async function POST(request: NextRequest) {
         sub.deepseekEnabled,
       );
 
-      // Delta reporting: classify findings as new or previously known
+      // Filter out false positives, then classify as new/known
+      const realFindings = await filterFalsePositives(findings);
       const { newFindings, knownFindings } = await classifyFindings(
         sub.githubUsername,
-        findings,
+        realFindings,
       );
 
       // Determine report type: full on configured day of month, delta otherwise
@@ -268,7 +270,8 @@ async function processQueue(): Promise<number> {
         }
       }
 
-      const report = buildReport(item.githubUsername, repos.length, allFindings);
+      const realQueueFindings = await filterFalsePositives(allFindings);
+      const report = buildReport(item.githubUsername, repos.length, realQueueFindings);
       const token = generateUnsubscribeToken(item.githubUsername);
       await sendReportEmail(report, item.email, token);
 

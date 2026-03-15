@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../../src/auth";
-import { getScanReports, getScanReport, countScanReports, getConfig, setConfig } from "../../../../src/scan-store";
+import { getScanReports, getScanReport, countScanReports, getConfig, setConfig, filterFalsePositives } from "../../../../src/scan-store";
 import { logAudit } from "../../../../src/audit-log";
 import { checkRateLimit, listPublicRepos, getRepoTree, getFileContent } from "../../../../src/github";
 import { getRedis } from "../../../../src/redis";
@@ -160,7 +160,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const report = buildReport(targetUsername, repos.length, allFindings);
+    const filteredFindings = await filterFalsePositives(allFindings);
+    const report = buildReport(targetUsername, repos.length, filteredFindings);
 
     let deepseekAnalysis: string | null = null;
     if (useDeepseek && allFindings.length > 0) {

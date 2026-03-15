@@ -87,6 +87,21 @@ export async function isFalsePositive(hash: string): Promise<boolean> {
   return result !== null;
 }
 
+/**
+ * Filter out findings that have been marked as false positive.
+ */
+export async function filterFalsePositives(findings: Finding[]): Promise<Finding[]> {
+  if (findings.length === 0) return findings;
+
+  const results: Finding[] = [];
+  for (const f of findings) {
+    const hash = findingHash(f.repo, f.file, f.description);
+    const fp = await isFalsePositive(hash);
+    if (!fp) results.push(f);
+  }
+  return results;
+}
+
 export async function listFalsePositives(): Promise<FalsePositive[]> {
   const kv = getRedis();
   const keys: string[] = [];
