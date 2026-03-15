@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { MarkdownPanel } from "./markdown-panel";
 
 interface HealthWarning {
   type: "redis" | "github";
@@ -366,19 +367,7 @@ export default function AdminDashboard() {
           <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 12, textTransform: "uppercase" }}>
             Laatste AI-analyse (DeepSeek)
           </h2>
-          <div style={{
-            fontSize: 12,
-            color: "#cccccc",
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-            maxHeight: 300,
-            overflow: "auto",
-            background: "#1e1e1e",
-            padding: 12,
-            borderRadius: 2,
-          }}>
-            {data.lastDeepseekAnalysis}
-          </div>
+          <MarkdownPanel content={data.lastDeepseekAnalysis} maxHeight={400} />
         </div>
       )}
 

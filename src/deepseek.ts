@@ -21,7 +21,7 @@ interface DeepSeekResponse {
 // System prompt — based on rwrw01-security-audit skill
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `Je bent een senior security engineer met 15+ jaar ervaring in applicatiebeveiliging, penetratietesten en code review. Je specialisaties zijn:
+export const DEEPSEEK_SYSTEM_PROMPT = `Je bent een senior security engineer met 15+ jaar ervaring in applicatiebeveiliging, penetratietesten en code review. Je specialisaties zijn:
 
 - OWASP Top 10 analyse en mitigatie
 - Secret detection en credential management
@@ -124,7 +124,7 @@ Analyseer deze bevindingen volgens je werkwijze. Geef een volledig rapport in he
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: DEEPSEEK_SYSTEM_PROMPT },
           { role: "user", content: userMessage },
         ],
         max_tokens: 4096,

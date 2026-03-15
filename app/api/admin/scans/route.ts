@@ -66,6 +66,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // DeepSeek prompt endpoint
+  if (searchParams.get("deepseek-prompt") === "true") {
+    const { DEEPSEEK_SYSTEM_PROMPT } = await import("../../../../src/deepseek");
+    return NextResponse.json({ prompt: DEEPSEEK_SYSTEM_PROMPT });
+  }
+
   // Config endpoint
   if (searchParams.get("config") === "true") {
     const scanFrequency = await getConfig("scan-frequency", "daily");

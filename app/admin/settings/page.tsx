@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { MarkdownPanel } from "../markdown-panel";
 
 interface Config {
   scanFrequency: "daily" | "weekly" | "monthly";
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const [config, setConfig] = useState<Config>({ scanFrequency: "daily", scanHourUtc: 6, scanDayOfWeek: 1, fullReportDay: 1 });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [deepseekPrompt, setDeepseekPrompt] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/scans?config=true")
@@ -27,6 +29,10 @@ export default function SettingsPage() {
           });
         }
       })
+      .catch(() => {});
+    fetch("/api/admin/scans?deepseek-prompt=true")
+      .then((r) => r.json())
+      .then((data) => setDeepseekPrompt(data.prompt ?? ""))
       .catch(() => {});
   }, []);
 
@@ -220,6 +226,19 @@ export default function SettingsPage() {
           <li>API secrets: <span style={{ color: "#6a9955" }}>Backend-only, never client-side</span></li>
         </ul>
       </div>
+
+      {/* DeepSeek prompt */}
+      {deepseekPrompt && (
+        <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20, marginTop: 16 }}>
+          <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 16, textTransform: "uppercase" }}>
+            DeepSeek System Prompt
+          </h2>
+          <p style={{ fontSize: 12, color: "#858585", marginTop: 0, marginBottom: 12 }}>
+            Deze instructie wordt als system prompt naar DeepSeek Reasoner gestuurd bij iedere AI-analyse.
+          </p>
+          <MarkdownPanel content={deepseekPrompt} maxHeight={600} />
+        </div>
+      )}
     </div>
   );
 }

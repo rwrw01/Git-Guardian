@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { MarkdownPanel } from "../markdown-panel";
 
 const SEVERITY_COLORS: Record<string, string> = {
   CRITICAL: "#f44747",
@@ -235,11 +236,9 @@ export default function ScansPage() {
 
               {/* DeepSeek analysis */}
               {selected.deepseekAnalysis && (
-                <div style={{ marginBottom: 16, background: "#1e1e1e", borderRadius: 4, padding: 12 }}>
+                <div style={{ marginBottom: 16 }}>
                   <h3 style={{ fontSize: 12, color: "#858585", fontWeight: 600, marginTop: 0, marginBottom: 8, textTransform: "uppercase" }}>AI-analyse (DeepSeek)</h3>
-                  <div style={{ fontSize: 12, color: "#cccccc", whiteSpace: "pre-wrap", lineHeight: 1.6, maxHeight: 200, overflow: "auto" }}>
-                    {selected.deepseekAnalysis}
-                  </div>
+                  <MarkdownPanel content={selected.deepseekAnalysis} maxHeight={400} />
                 </div>
               )}
 
