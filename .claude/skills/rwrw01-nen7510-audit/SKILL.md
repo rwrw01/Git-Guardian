@@ -2,7 +2,7 @@
 name: rwrw01-nen7510-audit
 description: Analyze document coverage against NEN7510 controls, identify gaps and duplicates, and generate a compliance report. Use for NEN7510 audits, gap analysis, or coverage checks.
 argument-hint: "[database path] [controls file]"
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # NEN7510 Dekkingsanalyse

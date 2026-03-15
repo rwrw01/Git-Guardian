@@ -2,7 +2,7 @@
 name: rwrw01-common-ground-audit
 description: Audit the project against the 5 layers of Dutch government Common Ground architecture including GEMMA/NORA compliance.
 argument-hint: "[focus layer or component]"
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Common Ground Architectuur Audit

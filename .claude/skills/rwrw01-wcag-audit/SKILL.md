@@ -2,7 +2,7 @@
 name: rwrw01-wcag-audit
 description: Run a WCAG 2.2 AA accessibility audit with automated and manual checks on the current project. Use for accessibility checks, a11y audits, or WCAG compliance reviews.
 argument-hint: "[URL or component path]"
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # WCAG AA Toegankelijkheidsaudit

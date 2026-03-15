@@ -2,7 +2,7 @@
 name: rwrw01-security-audit
 description: Run a full security-in-depth audit including OWASP Top 10, dependency analysis, and defense-in-depth review. Use for security audit, pentest review, or vulnerability assessment.
 argument-hint: "[scope or focus area]"
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Security-in-Depth Audit

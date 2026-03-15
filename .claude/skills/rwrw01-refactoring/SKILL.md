@@ -2,7 +2,7 @@
 name: rwrw01-refactoring
 description: Split large files (>300 lines) into logical modules while preserving functionality. Use when a file exceeds the line limit or needs structural reorganization.
 argument-hint: "[file path]"
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Refactoring — Bestand Opsplitsen
