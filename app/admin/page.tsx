@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { MarkdownPanel } from "./markdown-panel";
 
 interface HealthWarning {
@@ -31,6 +31,13 @@ interface DashboardData {
   lastScanId?: string;
   lastDeepseekAnalysis?: string | null;
 }
+
+const SEVERITY_COLORS: Record<string, string> = {
+  CRITICAL: "#f44747",
+  HIGH: "#cd9731",
+  MEDIUM: "#e2c08d",
+  LOW: "#3794ff",
+};
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -91,22 +98,32 @@ export default function AdminDashboard() {
     } catch { /* ignore health check errors */ }
   }, []);
 
+  const prevRunningRef = useRef(0);
+
   useEffect(() => {
     load();
-    // Poll for running scans every 5 seconds
-    const interval = setInterval(async () => {
+    // Adaptive polling: 5s when scans active, 30s when idle
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
       try {
         const res = await fetch("/api/admin/scans?health=true");
         const health = await res.json();
-        setRunningScans(health.runningScans ?? []);
+        const running = health.runningScans ?? [];
+        setRunningScans(running);
         setQueuedCount(health.queuedCount ?? 0);
-        // If scans just finished, reload all data
-        if ((health.runningScans ?? []).length === 0 && runningScans.length > 0) {
+        // Scans just finished → reload all data
+        if (running.length === 0 && prevRunningRef.current > 0) {
           load();
         }
-      } catch { /* ignore */ }
-    }, 5000);
-    return () => clearInterval(interval);
+        prevRunningRef.current = running.length;
+        // Poll faster when scans are active
+        timer = setTimeout(poll, running.length > 0 ? 5000 : 30000);
+      } catch {
+        timer = setTimeout(poll, 30000);
+      }
+    }
+    timer = setTimeout(poll, 3000);
+    return () => clearTimeout(timer);
   }, [load]);
 
   async function triggerScan() {
@@ -124,7 +141,7 @@ export default function AdminDashboard() {
       { delay: 60000, msg: "Rapport opslaan en e-mail versturen..." },
     ];
     const timers = progressSteps.map((step) =>
-      setTimeout(() => { if (scanning) setScanProgress(step.msg); }, step.delay),
+      setTimeout(() => setScanProgress(step.msg), step.delay),
     );
 
     try {
@@ -159,12 +176,6 @@ export default function AdminDashboard() {
     setScanning(false);
   }
 
-  const SEVERITY_COLORS: Record<string, string> = {
-    CRITICAL: "#f44747",
-    HIGH: "#cd9731",
-    MEDIUM: "#e2c08d",
-    LOW: "#3794ff",
-  };
 
   return (
     <div>
