@@ -60,8 +60,8 @@ export default function Home() {
       <p style={{ fontSize: 16, color: "#9ca3af", marginBottom: 40, lineHeight: 1.7 }}>
         Publieke GitHub-repositories zijn zichtbaar voor iedereen &mdash; ook voor kwaadwillenden.
         Git Guardian scant jouw repositories op gelekte wachtwoorden, API-sleutels, bekende
-        kwetsbaarheden in software en onbedoeld gepubliceerde persoonsgegevens. Binnen een minuut
-        weet je waar de risico&apos;s zitten. <strong style={{ color: "#d1d5db" }}>Volledig gratis.</strong>
+        kwetsbaarheden in software en onbedoeld gepubliceerde persoonsgegevens. Binnen enkele
+        minuten ontvang je een uitgebreid rapport per e-mail. <strong style={{ color: "#d1d5db" }}>Volledig gratis.</strong>
       </p>
 
       {/* Scan form */}
