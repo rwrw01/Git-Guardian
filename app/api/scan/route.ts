@@ -98,24 +98,23 @@ export async function POST(request: NextRequest) {
 
   // Check if this is the right time to scan based on configured frequency
   const now = new Date();
-  const scanFrequency = await getConfig("scan-frequency", "daily");
   const scanHourUtc = await getConfig("scan-hour-utc", 6);
-  const scanDayOfWeek = await getConfig("scan-day-of-week", 1);
 
   if (now.getUTCHours() !== scanHourUtc) {
     return NextResponse.json({ message: "Not scan hour", skipped: true });
   }
 
-  if (scanFrequency === "weekly" && now.getUTCDay() !== scanDayOfWeek) {
-    return NextResponse.json({ message: "Not scan day (weekly)", skipped: true });
-  }
-
-  if (scanFrequency === "monthly" && now.getUTCDate() !== scanDayOfWeek) {
-    return NextResponse.json({ message: "Not scan day (monthly)", skipped: true });
-  }
-
   try {
-    const subscribers = await listSubscribers();
+    const allSubscribers = await listSubscribers();
+
+    // Filter subscribers by their individual scan frequency
+    const subscribers = allSubscribers.filter((sub) => {
+      const freq = sub.scanFrequency ?? "daily";
+      if (freq === "daily") return true;
+      if (freq === "weekly") return now.getUTCDay() === 1; // Monday
+      if (freq === "monthly") return now.getUTCDate() === 1; // 1st of month
+      return true;
+    });
 
     if (subscribers.length === 0) {
       return NextResponse.json({ message: "No subscribers", scanned: 0 });

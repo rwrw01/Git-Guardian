@@ -9,7 +9,14 @@ interface Subscriber {
   lastScanAt: string | null;
   isOwner: boolean;
   deepseekEnabled: boolean;
+  scanFrequency?: "daily" | "weekly" | "monthly";
 }
+
+const FREQ_LABELS: Record<string, string> = {
+  daily: "D",
+  weekly: "W",
+  monthly: "M",
+};
 
 export default function SubscribersPage() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
@@ -51,27 +58,52 @@ export default function SubscribersPage() {
     load();
   }
 
-  async function scanNow(username: string) {
-    setScanningUser(username);
+  async function updateSub(username: string, updates: Partial<Subscriber>) {
+    await fetch("/api/admin/subscribers", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ githubUsername: username, ...updates }),
+    });
+    load();
+  }
+
+  async function scanNow(s: Subscriber) {
+    setScanningUser(s.githubUsername);
     setMessage("");
     try {
       const res = await fetch("/api/admin/scans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ githubUsername: username, sendEmail: true, useDeepseek: true }),
+        body: JSON.stringify({
+          githubUsername: s.githubUsername,
+          sendEmail: true,
+          useDeepseek: s.deepseekEnabled,
+        }),
       });
       const result = await res.json();
       if (res.ok) {
-        setMessage(`Scan ${username}: ${result.findings} findings in ${result.repos} repos — rapport verstuurd`);
+        setMessage(`Scan ${s.githubUsername}: ${result.findings} findings in ${result.repos} repos — rapport verstuurd`);
         load();
       } else {
-        setMessage(`Scan ${username} mislukt: ${result.message ?? result.error}`);
+        setMessage(`Scan ${s.githubUsername} mislukt: ${result.message ?? result.error}`);
       }
     } catch {
-      setMessage(`Scan ${username}: netwerkfout`);
+      setMessage(`Scan ${s.githubUsername}: netwerkfout`);
     }
     setScanningUser(null);
   }
+
+  const btnStyle = (active: boolean) => ({
+    padding: "1px 5px",
+    fontSize: 10,
+    background: active ? "#2ea043" : "transparent",
+    color: active ? "#fff" : "#858585",
+    border: `1px solid ${active ? "#2ea043" : "#555"}`,
+    borderRadius: 2,
+    cursor: "pointer" as const,
+    minWidth: 20,
+    textAlign: "center" as const,
+  });
 
   return (
     <div>
@@ -99,7 +131,7 @@ export default function SubscribersPage() {
             Add
           </button>
         </div>
-        {message && <div style={{ marginTop: 8, fontSize: 12, color: "#6a9955" }}>{message}</div>}
+        {message && <div style={{ marginTop: 8, fontSize: 12, color: message.includes("mislukt") || message.includes("fout") ? "#f44747" : "#6a9955" }}>{message}</div>}
       </div>
 
       {/* Subscriber list */}
@@ -110,9 +142,9 @@ export default function SubscribersPage() {
             <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Username</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Email</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Added</th>
+              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Frequentie</th>
+              <th style={{ padding: "6px 8px", fontWeight: 600 }}>DeepSeek</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Last Scan</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Role</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Actions</th>
             </tr>
           </thead>
@@ -121,18 +153,35 @@ export default function SubscribersPage() {
               <tr key={s.githubUsername} style={{ borderBottom: "1px solid #2d2d2d" }}>
                 <td style={{ padding: "6px 8px", color: "#9cdcfe", fontFamily: "monospace" }}>{s.githubUsername}</td>
                 <td style={{ padding: "6px 8px", color: "#cccccc" }}>{s.email}</td>
-                <td style={{ padding: "6px 8px", color: "#858585" }}>{new Date(s.createdAt).toLocaleDateString()}</td>
-                <td style={{ padding: "6px 8px", color: "#858585" }}>{s.lastScanAt ? new Date(s.lastScanAt).toLocaleDateString() : "—"}</td>
                 <td style={{ padding: "6px 8px" }}>
-                  {s.isOwner ? (
-                    <span style={{ color: "#dcdcaa", fontSize: 11 }}>OWNER</span>
-                  ) : (
-                    <span style={{ color: "#858585", fontSize: 11 }}>SUBSCRIBER</span>
-                  )}
+                  <div style={{ display: "flex", gap: 2 }}>
+                    {(["daily", "weekly", "monthly"] as const).map((freq) => (
+                      <button
+                        key={freq}
+                        onClick={() => updateSub(s.githubUsername, { scanFrequency: freq })}
+                        style={btnStyle((s.scanFrequency ?? "daily") === freq)}
+                        title={freq === "daily" ? "Dagelijks" : freq === "weekly" ? "Wekelijks" : "Maandelijks"}
+                      >
+                        {FREQ_LABELS[freq]}
+                      </button>
+                    ))}
+                  </div>
+                </td>
+                <td style={{ padding: "6px 8px" }}>
+                  <button
+                    onClick={() => updateSub(s.githubUsername, { deepseekEnabled: !s.deepseekEnabled })}
+                    style={btnStyle(s.deepseekEnabled)}
+                    title={s.deepseekEnabled ? "DeepSeek aan — klik om uit te zetten" : "DeepSeek uit — klik om aan te zetten"}
+                  >
+                    AI
+                  </button>
+                </td>
+                <td style={{ padding: "6px 8px", color: "#858585" }}>
+                  {s.lastScanAt ? new Date(s.lastScanAt).toLocaleDateString() : "—"}
                 </td>
                 <td style={{ padding: "6px 8px", display: "flex", gap: 4 }}>
                   <button
-                    onClick={() => scanNow(s.githubUsername)}
+                    onClick={() => scanNow(s)}
                     disabled={scanningUser === s.githubUsername}
                     style={{
                       padding: "2px 8px",

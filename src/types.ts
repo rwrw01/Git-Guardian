@@ -57,6 +57,7 @@ export interface Subscriber {
   lastScanAt: string | null;
   isOwner: boolean;
   deepseekEnabled: boolean;
+  scanFrequency?: "daily" | "weekly" | "monthly";
 }
 
 // ---------------------------------------------------------------------------

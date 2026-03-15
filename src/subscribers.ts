@@ -106,3 +106,12 @@ export async function updateLastScan(username: string): Promise<void> {
     lastScanAt: new Date().toISOString(),
   });
 }
+
+export async function updateSubscriberSettings(
+  username: string,
+  updates: Record<string, unknown>,
+): Promise<void> {
+  const sub = await getSubscriber(username);
+  if (!sub) return;
+  await getRedis().set(key(username), { ...sub, ...updates });
+}
