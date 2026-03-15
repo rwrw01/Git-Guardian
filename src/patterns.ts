@@ -155,6 +155,79 @@ export const SECRET_PATTERNS: SecretPattern[] = [
   },
 
   // ---------------------------------------------------------------------------
+  // Cloud provider credentials (vibecoding risk — see LinkedIn post)
+  // App registrations bypasses MFA/Conditional Access!
+  // ---------------------------------------------------------------------------
+
+  // Azure / Entra ID
+  {
+    id: "azure-client-secret",
+    description: "Azure/Entra ID Client Secret",
+    regex: /(?:client[_-]?secret|AZURE_CLIENT_SECRET|GRAPH_CLIENT_SECRET)\s*[:=]\s*['"]([A-Za-z0-9_~.]{30,})['"]?/i,
+    severity: Severity.CRITICAL,
+  },
+  {
+    id: "azure-tenant-id",
+    description: "Azure Tenant ID (with secret context)",
+    regex: /(?:tenant[_-]?id|AZURE_TENANT_ID|GRAPH_TENANT_ID)\s*[:=]\s*['"]([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})['"]?/i,
+    severity: Severity.HIGH,
+  },
+  {
+    id: "azure-connection-string",
+    description: "Azure Storage/Service Connection String",
+    regex: /DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{40,}/,
+    severity: Severity.CRITICAL,
+  },
+
+  // Firebase / GCP service account
+  {
+    id: "firebase-service-account",
+    description: "Firebase/GCP Service Account Key",
+    regex: /"type"\s*:\s*"service_account"/,
+    severity: Severity.CRITICAL,
+  },
+  {
+    id: "gcp-api-key",
+    description: "GCP API Key in Code",
+    regex: /(?:gcp|google|firebase)[_-]?(?:api[_-]?key|credentials)\s*[:=]\s*['"]([A-Za-z0-9_\-]{20,})['"]?/i,
+    severity: Severity.HIGH,
+  },
+
+  // OpenAI / AI service keys
+  {
+    id: "openai-api-key",
+    description: "OpenAI API Key",
+    regex: /sk-[A-Za-z0-9]{20,}/,
+    severity: Severity.HIGH,
+  },
+  {
+    id: "anthropic-api-key",
+    description: "Anthropic API Key",
+    regex: /sk-ant-[A-Za-z0-9_\-]{20,}/,
+    severity: Severity.HIGH,
+  },
+
+  // Client-side secret exposure (framework-specific)
+  {
+    id: "next-public-secret",
+    description: "Secret in NEXT_PUBLIC_ Variable (Client-Exposed)",
+    regex: /NEXT_PUBLIC_(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|CLIENT_SECRET|API_SECRET)\s*[:=]\s*['"]?([A-Za-z0-9_\-]{8,})['"]?/i,
+    severity: Severity.CRITICAL,
+  },
+  {
+    id: "vite-public-secret",
+    description: "Secret in VITE_ Variable (Client-Exposed)",
+    regex: /VITE_(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|CLIENT_SECRET|API_SECRET)\s*[:=]\s*['"]?([A-Za-z0-9_\-]{8,})['"]?/i,
+    severity: Severity.CRITICAL,
+  },
+  {
+    id: "react-app-secret",
+    description: "Secret in REACT_APP_ Variable (Client-Exposed)",
+    regex: /REACT_APP_(?:SECRET|KEY|TOKEN|PASSWORD|CREDENTIAL|CLIENT_SECRET|API_SECRET)\s*[:=]\s*['"]?([A-Za-z0-9_\-]{8,})['"]?/i,
+    severity: Severity.CRITICAL,
+  },
+
+  // ---------------------------------------------------------------------------
   // Variable assignment patterns (DeepSeek recommended)
   // Catches: const apiKey = 'sk_live_...'; const dbPassword = 'hunter2';
   // ---------------------------------------------------------------------------

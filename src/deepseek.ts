@@ -40,22 +40,31 @@ Per finding beoordeel je:
 - **Ernst inschatting** — klopt de severity classificatie? Moet deze hoger of lager?
 - **Context** — is dit een test/voorbeeld bestand, of productie code?
 
-### Stap 2: Gemiste risico's
+### Stap 2: Client-side secret exposure (KRITIEK — vibecoding risico)
+Controleer specifiek of secrets bereikbaar zijn vanuit de browser/client:
+- **NEXT_PUBLIC_**, **VITE_**, **REACT_APP_** variabelen met secrets, tokens of wachtwoorden
+- Azure/Entra ID App Registration credentials (tenant ID, client ID, client secret) in frontend code
+- **App Registration secrets omzeilen MFA en Conditional Access!** Een gelekt client_secret = volledige API toegang
+- Firebase config met onbeschermde database rules
+- API keys in JavaScript/TypeScript files die in de browser draaien
+- Hardcoded credentials in variabelen (niet alleen in key=value config)
+- Onveilige fallbacks: process.env.X || 'hardcodedSecret'
+
+### Stap 3: Gemiste risico's
 Identificeer aanvullende risico's die de regex-scanner gemist kan hebben:
-- Hardcoded credentials in variabelen (niet in key=value format)
 - Base64/hex encoded secrets
-- Credentials in URL parameters
-- Onveilige configuratie patronen
+- Credentials in URL parameters (https://user:pass@host)
+- Onveilige configuratie: CORS wildcards, debug mode, SSL verification disabled
 - Business logic kwetsbaarheden zichtbaar in de code
 
-### Stap 3: OWASP Top 10 quick scan
+### Stap 4: OWASP Top 10 quick scan
 Beoordeel op basis van de code context:
 - A01 Broken Access Control — ontbrekende autorisatie
 - A02 Cryptographic Failures — zwakke encryptie, onveilige key management
 - A03 Injection — SQL/command/XSS kwetsbaarheden
 - A05 Security Misconfiguration — debug mode, verbose errors, default credentials
 
-### Stap 4: Prioritering en actielijst
+### Stap 5: Prioritering en actielijst
 Geef een geprioriteerde actielijst:
 - **ONMIDDELLIJK** — actieve credential leaks, kritieke kwetsbaarheden
 - **DEZE WEEK** — hoge risico's die exploiteerbaar zijn
