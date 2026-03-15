@@ -146,7 +146,7 @@ export default function AdminDashboard() {
       ))}
 
       {/* Stat cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
+      <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 24 }}>
         {[
           { label: "Subscribers", value: data?.subscribers ?? "—" },
           { label: "Total Scans", value: data?.totalScans ?? "—" },
@@ -281,6 +281,7 @@ export default function AdminDashboard() {
         {!data?.recentFindings.length ? (
           <p style={{ color: "#858585", fontSize: 13 }}>Nog geen bevindingen. Start een scan hierboven.</p>
         ) : (
+          <div className="table-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
@@ -318,6 +319,7 @@ export default function AdminDashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

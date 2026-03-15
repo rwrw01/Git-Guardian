@@ -84,16 +84,16 @@ export default function SubscribersPage() {
         <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 12, textTransform: "uppercase" }}>
           Add Subscriber
         </h2>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="form-row" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             type="text" value={newUsername} onChange={(e) => setNewUsername(e.target.value)}
             placeholder="GitHub username"
-            style={{ flex: 1, padding: "6px 10px", fontSize: 13, background: "#3c3c3c", border: "1px solid #555", borderRadius: 2, color: "#ccc", outline: "none" }}
+            style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: 13, background: "#3c3c3c", border: "1px solid #555", borderRadius: 2, color: "#ccc", outline: "none" }}
           />
           <input
             type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
             placeholder="email@example.com"
-            style={{ flex: 1, padding: "6px 10px", fontSize: 13, background: "#3c3c3c", border: "1px solid #555", borderRadius: 2, color: "#ccc", outline: "none" }}
+            style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: 13, background: "#3c3c3c", border: "1px solid #555", borderRadius: 2, color: "#ccc", outline: "none" }}
           />
           <button onClick={addSub} style={{ padding: "6px 16px", fontSize: 13, background: "#2ea043", color: "#fff", border: "none", borderRadius: 2, cursor: "pointer" }}>
             Add
@@ -104,6 +104,7 @@ export default function SubscribersPage() {
 
       {/* Subscriber list */}
       <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, padding: 20 }}>
+        <div className="table-wrap">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
@@ -158,6 +159,7 @@ export default function SubscribersPage() {
             ))}
           </tbody>
         </table>
+        </div>
         {subscribers.length === 0 && <p style={{ color: "#858585", fontSize: 13, textAlign: "center", padding: 20 }}>No subscribers yet.</p>}
       </div>
     </div>

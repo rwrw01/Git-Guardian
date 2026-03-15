@@ -1,0 +1,109 @@
+/* Responsive utilities for Git Guardian */
+
+/* Mobile nav toggle button - hidden on desktop */
+.admin-nav-toggle {
+  display: none;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1001;
+  background: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  color: #cccccc;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Mobile overlay backdrop */
+.admin-nav-overlay {
+  display: none;
+}
+
+/* Responsive admin layout */
+@media (max-width: 768px) {
+  .admin-nav-toggle {
+    display: flex;
+  }
+
+  .admin-layout {
+    flex-direction: column !important;
+  }
+
+  .admin-nav {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000;
+    width: 220px !important;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .admin-nav.open {
+    transform: translateX(0);
+  }
+
+  .admin-nav-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+
+  .admin-nav-overlay.open {
+    display: block;
+  }
+
+  .admin-main {
+    padding: 56px 16px 24px !important;
+    width: 100% !important;
+  }
+
+  /* Dashboard stat cards: 2 columns on mobile */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Tables: horizontal scroll */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrap table {
+    min-width: 500px;
+  }
+
+  /* Scan history split panel: stack vertically */
+  .split-panel {
+    flex-direction: column !important;
+  }
+
+  .split-panel > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid #3c3c3c;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Stat cards: 1 column on very small screens */
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-main {
+    padding: 56px 12px 20px !important;
+  }
+}

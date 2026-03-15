@@ -45,6 +45,7 @@ export default function AuditPage() {
         {entries.length === 0 ? (
           <p style={{ color: "#858585", fontSize: 13, textAlign: "center" }}>No audit events recorded yet.</p>
         ) : (
+          <div className="table-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
@@ -73,6 +74,7 @@ export default function AuditPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

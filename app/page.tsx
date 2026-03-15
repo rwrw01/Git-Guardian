@@ -184,7 +184,7 @@ export default function Home() {
       {/* What we scan */}
       <div style={{ marginTop: 48, fontSize: 14, color: "#9ca3af" }}>
         <h3 style={{ fontSize: 18, color: "#d1d5db", marginBottom: 16 }}>Wat scannen we?</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }}>
           {[
             {
               title: "Secrets & tokens",

@@ -16,9 +16,9 @@ export default async function AdminLayout({
   const username = (session.user as Record<string, unknown>).githubUsername as string ?? session.user.email ?? "";
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
+    <div className="admin-layout" style={{ display: "flex", minHeight: "100vh" }}>
       <AdminNav username={username} />
-      <main style={{ flex: 1, padding: "32px 40px", overflowY: "auto", background: "#1e1e1e" }}>
+      <main className="admin-main" style={{ flex: 1, padding: "32px 40px", overflowY: "auto", background: "#1e1e1e" }}>
         {children}
       </main>
     </div>

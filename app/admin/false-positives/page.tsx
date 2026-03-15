@@ -56,6 +56,7 @@ export default function FalsePositivesPage() {
         {fps.length === 0 ? (
           <p style={{ color: "#858585", fontSize: 13, textAlign: "center", padding: 20 }}>No false positives marked.</p>
         ) : (
+          <div className="table-wrap">
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
@@ -87,6 +88,7 @@ export default function FalsePositivesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

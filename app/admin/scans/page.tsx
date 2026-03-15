@@ -108,10 +108,10 @@ export default function ScansPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 16 }}>
+      <div className="split-panel" style={{ display: "flex", gap: 16 }}>
         {/* Report list */}
-        <div style={{ width: 340, flexShrink: 0 }}>
-          <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4, maxHeight: "80vh", overflow: "auto" }}>
+        <div style={{ width: 340, flexShrink: 0, minWidth: 0 }}>
+          <div style={{ background: "#252526", border: "1px solid #3c3c3c", borderRadius: 4 }}>
             {reports.length === 0 ? (
               <p style={{ color: "#858585", fontSize: 13, padding: 20, textAlign: "center" }}>Nog geen scanrapporten.</p>
             ) : (
@@ -185,6 +185,7 @@ export default function ScansPage() {
                 </div>
               )}
 
+              <div className="table-wrap">
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #3c3c3c", color: "#858585", textAlign: "left" }}>
@@ -247,6 +248,7 @@ export default function ScansPage() {
                   })}
                 </tbody>
               </table>
+              </div>
               {selected.findings.length === 0 && (
                 <p style={{ color: "#6a9955", fontSize: 13, textAlign: "center", padding: 20 }}>Schone scan — geen bevindingen.</p>
               )}
