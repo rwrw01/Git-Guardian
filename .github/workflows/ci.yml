@@ -1,3 +1,5 @@
+# Git-Guardian CI — calls the rwrw01 reusable workflow
+# Until rwrw01/.github exists, runs inline (same logic as reusable-ci.yml)
 name: CI
 
 on:
@@ -8,6 +10,11 @@ on:
 
 permissions:
   contents: read
+
+# --- When rwrw01/.github is live, replace everything below with: ---
+# jobs:
+#   ci:
+#     uses: rwrw01/.github/.github/workflows/reusable-ci.yml@main
 
 jobs:
   typecheck:
@@ -48,7 +55,7 @@ jobs:
       - run: npm audit --audit-level=high
 
   secret-scan:
-    name: Secret Scan
+    name: Secret Scan (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

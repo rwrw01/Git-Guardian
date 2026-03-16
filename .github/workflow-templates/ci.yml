@@ -1,0 +1,19 @@
+# Copy this file to your repo: .github/workflows/ci.yml
+# Calls the reusable CI workflow from the rwrw01 organization
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    uses: rwrw01/.github/.github/workflows/reusable-ci.yml@main
+    # Override defaults per project if needed:
+    # with:
+    #   node-version: "22"
+    #   run-typecheck: true
+    #   build-command: "npm run build"
+    #   audit-level: "high"

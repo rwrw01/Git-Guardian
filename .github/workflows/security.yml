@@ -1,7 +1,11 @@
+# Git-Guardian Security — calls the rwrw01 reusable workflow
+# Until rwrw01/.github is live, runs inline (same logic as reusable-security.yml)
 name: Security
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   schedule:
     - cron: "0 8 * * 1" # Weekly on Monday at 08:00 UTC
@@ -9,6 +13,14 @@ on:
 permissions:
   contents: read
   security-events: write
+
+# --- When rwrw01/.github is live, replace everything below with: ---
+# jobs:
+#   security:
+#     uses: rwrw01/.github/.github/workflows/reusable-security.yml@main
+#     permissions:
+#       contents: read
+#       security-events: write
 
 jobs:
   codeql:
@@ -30,3 +42,19 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+          deny-licenses: GPL-2.0-only,GPL-3.0-only,AGPL-3.0-only
+
+  license-check:
+    name: License Compliance (EUPL-1.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify LICENSE file exists
+        run: |
+          if [ ! -f LICENSE ]; then
+            echo "::error::LICENSE file is missing. All rwrw01 repos must include EUPL-1.2 license."
+            exit 1
+          fi
+          if ! grep -qi "EUPL" LICENSE; then
+            echo "::warning::LICENSE file does not appear to contain EUPL. Please verify."
+          fi

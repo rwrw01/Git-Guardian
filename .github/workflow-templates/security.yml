@@ -1,0 +1,27 @@
+# Copy this file to your repo: .github/workflows/security.yml
+# Calls the reusable security workflow from the rwrw01 organization
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 8 * * 1" # Weekly on Monday at 08:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    uses: rwrw01/.github/.github/workflows/reusable-security.yml@main
+    permissions:
+      contents: read
+      security-events: write
+    # Override defaults per project if needed:
+    # with:
+    #   codeql-languages: "javascript-typescript"
+    #   fail-on-severity: "high"
+    #   deny-licenses: "GPL-2.0-only,GPL-3.0-only,AGPL-3.0-only"

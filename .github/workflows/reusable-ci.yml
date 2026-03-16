@@ -1,0 +1,89 @@
+# Reusable CI workflow for all rwrw01 repositories
+# Location: rwrw01/.github/.github/workflows/reusable-ci.yml
+#
+# Provides: typecheck, build, dependency audit, secret scanning
+# Supports: Node.js (npm) projects — extendable for Python/Go
+
+name: "Reusable CI"
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: "Node.js version to use"
+        type: string
+        default: "22"
+      run-typecheck:
+        description: "Run TypeScript type checking"
+        type: boolean
+        default: true
+      run-build:
+        description: "Run build step"
+        type: boolean
+        default: true
+      build-command:
+        description: "Custom build command"
+        type: string
+        default: "npm run build"
+      typecheck-command:
+        description: "Custom typecheck command"
+        type: string
+        default: "npm run typecheck"
+      audit-level:
+        description: "npm audit severity threshold"
+        type: string
+        default: "high"
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: TypeScript Check
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run-typecheck }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: ${{ inputs.typecheck-command }}
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    if: ${{ inputs.run-build }}
+    needs: typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: ${{ inputs.build-command }}
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=${{ inputs.audit-level }}
+
+  secret-scan:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
