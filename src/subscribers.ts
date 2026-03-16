@@ -1,7 +1,8 @@
 import type { Subscriber } from "./types";
-import { createHmac } from "crypto";
+import { createHmac } from "node:crypto";
 
 import { getRedis } from "./redis";
+import { safeCompare } from "./crypto-utils";
 
 // ---------------------------------------------------------------------------
 // Subscriber datastore — Upstash Redis
@@ -19,7 +20,11 @@ function key(username: string): string {
 // ---------------------------------------------------------------------------
 
 function getTokenSecret(): string {
-  return process.env.CRON_SECRET ?? "fallback-secret";
+  const secret = process.env.UNSUBSCRIBE_SECRET ?? process.env.CRON_SECRET;
+  if (!secret) {
+    throw new Error("UNSUBSCRIBE_SECRET or CRON_SECRET must be configured");
+  }
+  return secret;
 }
 
 export function generateUnsubscribeToken(username: string): string {
@@ -33,7 +38,7 @@ export function verifyUnsubscribeToken(
   token: string,
 ): boolean {
   const expected = generateUnsubscribeToken(username);
-  return expected === token;
+  return safeCompare(expected, token);
 }
 
 // ---------------------------------------------------------------------------

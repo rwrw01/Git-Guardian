@@ -20,6 +20,7 @@ import {
   saveKnownFindings,
   getConfig,
 } from "../../../src/scan-store";
+import { safeCompare } from "../../../src/crypto-utils";
 
 // ---------------------------------------------------------------------------
 // Daily cron endpoint — POST /api/scan
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   const expectedSecret = process.env.CRON_SECRET;
 
-  if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
+  if (!expectedSecret || !authHeader || !safeCompare(authHeader, `Bearer ${expectedSecret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -201,7 +202,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error(`[scan] Fatal error: ${String(error)}`);
     return NextResponse.json(
-      { error: "Scan failed", message: String(error) },
+      { error: "Scan failed" },
       { status: 500 },
     );
   }

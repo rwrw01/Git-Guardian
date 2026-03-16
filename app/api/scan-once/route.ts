@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: "Scan failed", message: String(error) },
+      { error: "Scan mislukt", message: "Er is een fout opgetreden. Probeer het later opnieuw." },
       { status: 500 },
     );
   }

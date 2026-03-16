@@ -89,6 +89,27 @@ export const ScanOnceInput = z.object({
 
 export type ScanOnceInput = z.infer<typeof ScanOnceInput>;
 
+export const GH_USERNAME_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
+
+export const SubscriberInput = z.object({
+  githubUsername: z
+    .string()
+    .min(1)
+    .max(39)
+    .regex(GH_USERNAME_REGEX),
+  email: z.string().email().max(254),
+  isOwner: z.boolean().optional(),
+});
+export type SubscriberInput = z.infer<typeof SubscriberInput>;
+
+export const ContactInput = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email().max(254),
+  message: z.string().min(1).max(5000),
+  organisation: z.string().max(200).optional(),
+  githubOrg: z.string().max(39).optional(),
+});
+
 // ---------------------------------------------------------------------------
 // GitHub API response types
 // ---------------------------------------------------------------------------

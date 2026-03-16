@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../../src/auth";
 import { listSubscribers, addSubscriber, removeSubscriber } from "../../../../src/subscribers";
 import { logAudit } from "../../../../src/audit-log";
+import { SubscriberInput } from "../../../../src/types";
 
 export const runtime = "nodejs";
 
@@ -17,15 +18,18 @@ export async function POST(request: NextRequest) {
   const actor = await requireAdmin();
 
   const body = await request.json().catch(() => null);
-  if (!body?.githubUsername || !body?.email) {
+  const parsed = SubscriberInput.safeParse(body);
+
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "githubUsername and email are required" },
+      { error: "Ongeldige invoer", details: parsed.error.flatten() },
       { status: 400 },
     );
   }
 
-  const subscriber = await addSubscriber(body.githubUsername, body.email, body.isOwner ?? false);
-  await logAudit(actor, "SUBSCRIBER_ADD", body.githubUsername, `Added subscriber ${body.githubUsername} (${body.email})`);
+  const { githubUsername, email, isOwner } = parsed.data;
+  const subscriber = await addSubscriber(githubUsername, email, isOwner ?? false);
+  await logAudit(actor, "SUBSCRIBER_ADD", githubUsername, `Added subscriber ${githubUsername} (${email})`);
 
   return NextResponse.json({ subscriber }, { status: 201 });
 }

@@ -6,6 +6,8 @@ import {
   removeSubscriber,
   verifyUnsubscribeToken,
 } from "../../../src/subscribers";
+import { safeCompare } from "../../../src/crypto-utils";
+import { SubscriberInput } from "../../../src/types";
 
 // ---------------------------------------------------------------------------
 // Subscriber CRUD — GET/POST/DELETE /api/subscribers
@@ -30,10 +32,15 @@ export async function GET(request: NextRequest) {
     }
 
     await removeSubscriber(username);
+    const safeUsername = username
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
     return new NextResponse(
       `<html><body style="font-family:sans-serif;max-width:600px;margin:80px auto;text-align:center;">
         <h1>Uitgeschreven</h1>
-        <p>${username} ontvangt geen dagelijkse scanrapporten meer.</p>
+        <p>${safeUsername} ontvangt geen dagelijkse scanrapporten meer.</p>
       </body></html>`,
       { headers: { "Content-Type": "text/html" } },
     );
@@ -41,7 +48,8 @@ export async function GET(request: NextRequest) {
 
   // List subscribers (admin only)
   const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !auth || !safeCompare(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -54,15 +62,16 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
+  const parsed = SubscriberInput.safeParse(body);
 
-  if (!body?.githubUsername || !body?.email) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "githubUsername and email are required" },
+      { error: "Ongeldige invoer", details: parsed.error.flatten() },
       { status: 400 },
     );
   }
 
-  const subscriber = await addSubscriber(body.githubUsername, body.email);
+  const subscriber = await addSubscriber(parsed.data.githubUsername, parsed.data.email);
   return NextResponse.json({ subscriber }, { status: 201 });
 }
 
@@ -71,7 +80,8 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !auth || !safeCompare(auth, `Bearer ${secret}`)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

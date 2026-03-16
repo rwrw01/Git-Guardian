@@ -3,8 +3,12 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { Resend } from "resend";
 import { generateMagicToken, isAllowedAdmin } from "../../../../src/auth";
+import { getRedis } from "../../../../src/redis";
 
 export const runtime = "nodejs";
+
+const LOGIN_RATE_LIMIT_SECONDS = 900; // 15 minutes
+const LOGIN_RATE_LIMIT_MAX = 5;
 
 const LoginSchema = z.object({
   email: z.string().email().max(254),
@@ -26,9 +30,21 @@ export async function POST(request: NextRequest) {
 
   const email = parsed.data.email.toLowerCase();
 
+  // Rate limiting: max 5 attempts per email per 15 minutes
+  const redis = getRedis();
+  const rateLimitKey = `ratelimit:login:${email}`;
+  const attempts = await redis.get<number>(rateLimitKey);
+
+  if (attempts !== null && attempts >= LOGIN_RATE_LIMIT_MAX) {
+    // Return success to prevent email enumeration even on rate limit
+    return NextResponse.json({ ok: true });
+  }
+
+  await redis.set(rateLimitKey, (attempts ?? 0) + 1, { ex: LOGIN_RATE_LIMIT_SECONDS });
+
   // Always return success to prevent email enumeration
   if (!isAllowedAdmin(email)) {
-    console.log(`[auth] Login attempt for non-admin email: ${email}`);
+    console.log("[auth] Login attempt for non-admin email");
     return NextResponse.json({ ok: true });
   }
 
@@ -79,7 +95,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Kon e-mail niet verzenden" }, { status: 500 });
     }
 
-    console.log(`[auth] Magic link sent to ${email}`);
+    console.log(`[auth] Magic link sent to ${email.replace(/(.{2}).*@/, "$1***@")}`);
   } catch (error) {
     console.error(`[auth] Failed to send magic link: ${String(error)}`);
     return NextResponse.json({ error: "Kon e-mail niet verzenden" }, { status: 500 });
