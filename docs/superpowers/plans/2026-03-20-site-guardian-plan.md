@@ -3469,6 +3469,156 @@ git commit -m "Add missing scanner checks: forms HTTPS, iframe sovereignty, TLS 
 
 ---
 
+## Task 21: E2E Tests met Playwright
+
+**Test site:** `https://www.rijssen-holten.nl/` (echte gemeente-website)
+
+**Files:**
+- Create: `e2e/scan-flow.spec.ts`
+- Create: `playwright.config.ts`
+
+- [ ] **Step 1: Install Playwright test runner**
+
+```bash
+npm install -D @playwright/test
+npx playwright install chromium
+```
+
+- [ ] **Step 2: Create playwright.config.ts**
+
+```typescript
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  timeout: 120000, // scans can take time
+  use: {
+    baseURL: 'http://localhost:8080',
+  },
+  webServer: {
+    command: 'npm run dev',
+    port: 8080,
+    reuseExistingServer: true,
+    timeout: 30000,
+  },
+});
+```
+
+- [ ] **Step 3: Write happy flow E2E test**
+
+`e2e/scan-flow.spec.ts`:
+```typescript
+import { test, expect } from '@playwright/test';
+
+test.describe('Scan flow', () => {
+
+  test('happy: scan gemeente Rijssen-Holten and show results', async ({ page }) => {
+    await page.goto('/');
+
+    // Landing page loads
+    await expect(page.locator('h1')).toContainText('Site Guardian');
+
+    // Fill in URL
+    await page.fill('#url', 'https://www.rijssen-holten.nl/');
+
+    // Start scan
+    await page.click('button[type="submit"]');
+
+    // Wait for results (scan takes time)
+    await expect(page.locator('text=/[A-F]/'))
+      .toBeVisible({ timeout: 90000 });
+
+    // Overall score is visible (A-F letter)
+    const gradeText = await page.textContent('body');
+    expect(gradeText).toMatch(/[A-F]/);
+
+    // Category sections are rendered
+    await expect(page.locator('text=Cookies')).toBeVisible();
+    await expect(page.locator('text=Security Headers')).toBeVisible();
+    await expect(page.locator('text=Soevereiniteit')).toBeVisible();
+    await expect(page.locator('text=Privacy')).toBeVisible();
+    await expect(page.locator('text=Toegankelijkheid')).toBeVisible();
+    await expect(page.locator('text=Hygiëne')).toBeVisible();
+
+    // At least some checks ran
+    await expect(page.locator('text=/\\[OK\\]|\\[X\\]|\\[!\\]/')).toHaveCount(
+      { minimum: 5 },
+      { timeout: 5000 },
+    );
+  });
+
+  test('happy: scan with email field filled (no actual send without API key)', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('#url', 'https://www.rijssen-holten.nl/');
+    await page.fill('#email', 'test@example.com');
+    await page.click('button[type="submit"]');
+
+    // Should still show results in browser regardless of email
+    await expect(page.locator('text=/[A-F]/'))
+      .toBeVisible({ timeout: 90000 });
+  });
+
+  test('unhappy: reject invalid URL (http instead of https)', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('#url', 'http://www.rijssen-holten.nl/');
+    await page.click('button[type="submit"]');
+
+    // Should show error message
+    await expect(page.locator('text=/HTTPS|https/i')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('unhappy: reject private IP address', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('#url', 'https://192.168.1.1');
+    await page.click('button[type="submit"]');
+
+    // Should show error message about blocked address
+    await expect(page.locator('text=/niet toegestaan|blocked/i')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('unhappy: reject empty URL', async ({ page }) => {
+    await page.goto('/');
+    // Don't fill URL, just click submit
+    await page.click('button[type="submit"]');
+
+    // Browser validation should prevent submit (required field)
+    // URL field should still be empty
+    const urlValue = await page.inputValue('#url');
+    expect(urlValue).toBe('');
+  });
+
+  test('unhappy: reject localhost', async ({ page }) => {
+    await page.goto('/');
+    await page.fill('#url', 'https://localhost');
+    await page.click('button[type="submit"]');
+
+    await expect(page.locator('text=/niet toegestaan|blocked/i')).toBeVisible({ timeout: 10000 });
+  });
+
+});
+```
+
+- [ ] **Step 4: Add E2E test script to package.json**
+
+```json
+"test:e2e": "npx playwright test"
+```
+
+- [ ] **Step 5: Run E2E tests**
+
+```bash
+npm run test:e2e
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add e2e/ playwright.config.ts package.json
+git commit -m "Add E2E tests with Playwright against gemeente Rijssen-Holten"
+```
+
+---
+
 ## Execution Order Summary
 
 | Task | Description | Dependencies |
@@ -3492,6 +3642,7 @@ git commit -m "Add missing scanner checks: forms HTTPS, iframe sovereignty, TLS 
 | 19 | Integrate rate limiting in scan API | Tasks 13, 17 |
 | 20 | Missing scanner checks | Tasks 4-8 |
 | 14 | Landing page UI | Task 12 |
-| 15 | README + verification | Tasks 13-14, 18-20 |
+| 21 | E2E tests (Playwright, rijssen-holten.nl) | Tasks 14, 19 |
+| 15 | README + verification | Tasks 13-14, 18-21 |
 
 **Parallelizable:** Tasks 3-11, 16, 17 can be developed in parallel (independent modules). Tasks 13, 14, 18 can be parallel after Task 12. Tasks 19 and 20 can be parallel.
