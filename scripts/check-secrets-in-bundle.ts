@@ -24,7 +24,7 @@ const FORBIDDEN_PATTERNS = [
   { name: "Database URL", regex: /(?:postgres|mysql|mongodb|redis):\/\/[^\s"']{10,}/gi },
   { name: "Connection String", regex: /DefaultEndpointsProtocol=https;AccountName=/g },
   { name: "JWT (hardcoded)", regex: /eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\./g },
-  { name: "process.env (server-only)", regex: /process\.env\.(?:GRAPH_|AUTH_SECRET|CRON_SECRET|RESEND_|REDIS_|DEEPSEEK_)/g },
+  { name: "process.env (server-only)", regex: /process\.env\.(?:GRAPH_|AUTH_SECRET|CRON_SECRET|RESEND_|REDIS_|MISTRAL_)/g },
 ];
 
 function walkDir(dir: string): string[] {

@@ -159,7 +159,7 @@ export async function sendReportEmail(
   report: ScanReport,
   recipientEmail: string,
   unsubscribeToken: string,
-  deepseekAnalysis?: string | null,
+  mistralAnalysis?: string | null,
 ): Promise<boolean> {
   if (report.findings.length === 0) {
     console.log(`[email] No findings for ${report.githubUsername}, skipping email`);
@@ -174,7 +174,7 @@ export async function sendReportEmail(
 
   const subject = `[Git Guardian] ${report.findings.length} bevindingen in ${report.totalRepos} repositories — ${date}`;
 
-  let html = renderReportHtml(report, deepseekAnalysis);
+  let html = renderReportHtml(report, mistralAnalysis);
 
   const baseUrl = process.env.APP_URL
     ?? "http://localhost:3000";

@@ -6,7 +6,7 @@ import { getRedis } from "../../../src/redis";
 import { scanForSecrets } from "../../../src/secrets";
 import { scanForPii } from "../../../src/pii";
 import { scanForDependencyVulns } from "../../../src/dependencies";
-import { analyzeWithDeepSeek } from "../../../src/deepseek";
+import { analyzeWithMistral } from "../../../src/mistral";
 import { buildReport } from "../../../src/reporter";
 import { sendReportEmail } from "../../../src/email";
 import {
@@ -60,7 +60,7 @@ async function scanRepoFiles(
 
 async function scanSubscriber(
   username: string,
-  useDeepseek: boolean,
+  useMistral: boolean,
 ): Promise<{ findings: Finding[]; repoCount: number; error?: string }> {
   const repos = await listPublicRepos(username);
   const allFindings: Finding[] = [];
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       const { findings, repoCount } = await scanSubscriber(
         sub.githubUsername,
-        sub.deepseekEnabled,
+        sub.mistralEnabled,
       );
 
       // Filter out false positives, then classify as new/known
@@ -147,18 +147,18 @@ export async function POST(request: NextRequest) {
       report.reportType = isFullReportDay ? "full" : "delta";
       report.previousFindingsCount = knownFindings.length;
 
-      // DeepSeek analysis for owner only (only when there are new findings)
-      let deepseekAnalysis: string | null = null;
-      if (sub.deepseekEnabled && newFindings.length > 0) {
+      // Mistral analysis for owner only (only when there are new findings)
+      let mistralAnalysis: string | null = null;
+      if (sub.mistralEnabled && newFindings.length > 0) {
         const codeContext = newFindings
           .slice(0, 10)
           .map((f) => `${f.file}:${f.line} — ${f.description}`)
           .join("\n");
-        deepseekAnalysis = await analyzeWithDeepSeek(newFindings, codeContext);
+        mistralAnalysis = await analyzeWithMistral(newFindings, codeContext);
       }
 
-      if (deepseekAnalysis) {
-        report.deepseekAnalysis = deepseekAnalysis;
+      if (mistralAnalysis) {
+        report.mistralAnalysis = mistralAnalysis;
       }
 
       // Save report and update known findings
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
           report,
           sub.email,
           token,
-          deepseekAnalysis,
+          mistralAnalysis,
         );
       }
 

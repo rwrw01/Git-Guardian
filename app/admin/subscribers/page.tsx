@@ -8,7 +8,7 @@ interface Subscriber {
   createdAt: string;
   lastScanAt: string | null;
   isOwner: boolean;
-  deepseekEnabled: boolean;
+  mistralEnabled: boolean;
   scanFrequency?: "daily" | "weekly" | "monthly";
 }
 
@@ -77,7 +77,7 @@ export default function SubscribersPage() {
         body: JSON.stringify({
           githubUsername: s.githubUsername,
           sendEmail: true,
-          useDeepseek: s.deepseekEnabled,
+          useMistral: s.mistralEnabled,
         }),
       });
       const result = await res.json();
@@ -143,7 +143,7 @@ export default function SubscribersPage() {
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Username</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Email</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Frequentie</th>
-              <th style={{ padding: "6px 8px", fontWeight: 600 }}>DeepSeek</th>
+              <th style={{ padding: "6px 8px", fontWeight: 600 }}>Mistral</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Last Scan</th>
               <th style={{ padding: "6px 8px", fontWeight: 600 }}>Actions</th>
             </tr>
@@ -169,9 +169,9 @@ export default function SubscribersPage() {
                 </td>
                 <td style={{ padding: "6px 8px" }}>
                   <button
-                    onClick={() => updateSub(s.githubUsername, { deepseekEnabled: !s.deepseekEnabled })}
-                    style={btnStyle(s.deepseekEnabled)}
-                    title={s.deepseekEnabled ? "DeepSeek aan — klik om uit te zetten" : "DeepSeek uit — klik om aan te zetten"}
+                    onClick={() => updateSub(s.githubUsername, { mistralEnabled: !s.mistralEnabled })}
+                    style={btnStyle(s.mistralEnabled)}
+                    title={s.mistralEnabled ? "Mistral aan — klik om uit te zetten" : "Mistral uit — klik om aan te zetten"}
                   >
                     AI
                   </button>

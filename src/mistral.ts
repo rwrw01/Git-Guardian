@@ -1,27 +1,53 @@
 import type { Finding } from "./types";
 
 // ---------------------------------------------------------------------------
-// DeepSeek Reasoner — owner-only, senior security specialist analysis
-// Uses deepseek-reasoner (thinking mode) for chain-of-thought reasoning
+// Mistral AI — owner-only, senior security specialist analysis
+// Uses magistral-medium-latest (thinking mode) for chain-of-thought reasoning
 // ---------------------------------------------------------------------------
 
-const DEEPSEEK_API = "https://api.deepseek.com/v1/chat/completions";
-const MODEL = "deepseek-reasoner";
+const MISTRAL_API = "https://api.mistral.ai/v1/chat/completions";
+const MODEL = "magistral-medium-latest";
 
-interface DeepSeekResponse {
+interface MistralContentPart {
+  type: "thinking" | "text";
+  text?: string;
+  thinking?: Array<{ type: "text"; text: string }>;
+}
+
+interface MistralResponse {
   choices: Array<{
     message: {
-      reasoning_content?: string;
-      content: string;
+      content: string | MistralContentPart[];
     };
   }>;
+}
+
+/** Extract the final text answer from a Mistral response (skips reasoning parts). */
+function extractContent(content: string | MistralContentPart[]): {
+  text: string | null;
+  reasoningLength: number;
+} {
+  if (typeof content === "string") return { text: content, reasoningLength: 0 };
+
+  let text: string | null = null;
+  let reasoningLength = 0;
+
+  for (const part of content) {
+    if (part.type === "text" && part.text) {
+      text = part.text;
+    } else if (part.type === "thinking" && part.thinking) {
+      reasoningLength = part.thinking.reduce((n, t) => n + t.text.length, 0);
+    }
+  }
+
+  return { text, reasoningLength };
 }
 
 // ---------------------------------------------------------------------------
 // System prompt — based on rwrw01-security-audit skill
 // ---------------------------------------------------------------------------
 
-export const DEEPSEEK_SYSTEM_PROMPT = `Je bent een senior security engineer met 15+ jaar ervaring in applicatiebeveiliging, penetratietesten en code review. Je specialisaties zijn:
+export const MISTRAL_SYSTEM_PROMPT = `Je bent een senior security engineer met 15+ jaar ervaring in applicatiebeveiliging, penetratietesten en code review. Je specialisaties zijn:
 
 - OWASP Top 10 analyse en mitigatie
 - Secret detection en credential management
@@ -83,16 +109,16 @@ Rapport in het **Nederlands**. Per bevinding vermeld:
 // ---------------------------------------------------------------------------
 
 /**
- * Send findings + code context to DeepSeek Reasoner for deep security analysis.
+ * Send findings + code context to Mistral for deep security analysis.
  * Uses chain-of-thought reasoning for thorough assessment.
  * Returns the analysis text (final answer, not the reasoning chain).
- * Returns null if DeepSeek is not configured or the call fails.
+ * Returns null if Mistral is not configured or the call fails.
  */
-export async function analyzeWithDeepSeek(
+export async function analyzeWithMistral(
   findings: Finding[],
   codeContext: string,
 ): Promise<string | null> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) return null;
   if (findings.length === 0) return null;
 
@@ -115,7 +141,7 @@ ${codeContext.slice(0, 12000)}
 Analyseer deze bevindingen volgens je werkwijze. Geef een volledig rapport in het Nederlands.`;
 
   try {
-    const res = await fetch(DEEPSEEK_API, {
+    const res = await fetch(MISTRAL_API, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -124,33 +150,33 @@ Analyseer deze bevindingen volgens je werkwijze. Geef een volledig rapport in he
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: "system", content: DEEPSEEK_SYSTEM_PROMPT },
+          { role: "system", content: MISTRAL_SYSTEM_PROMPT },
           { role: "user", content: userMessage },
         ],
-        max_tokens: 4096,
+        max_tokens: 16384,
       }),
     });
 
     if (!res.ok) {
-      console.error(`[deepseek] API ${res.status}: ${await res.text()}`);
+      console.error(`[mistral] API ${res.status}: ${await res.text()}`);
       return null;
     }
 
-    const data = (await res.json()) as DeepSeekResponse;
+    const data = (await res.json()) as MistralResponse;
     const choice = data.choices[0];
 
     if (!choice) return null;
 
+    const { text, reasoningLength } = extractContent(choice.message.content);
+
     // Log reasoning chain length for monitoring (don't include in report)
-    if (choice.message.reasoning_content) {
-      console.log(
-        `[deepseek] Reasoning chain: ${choice.message.reasoning_content.length} chars`,
-      );
+    if (reasoningLength > 0) {
+      console.log(`[mistral] Reasoning chain: ${reasoningLength} chars`);
     }
 
-    return choice.message.content ?? null;
+    return text;
   } catch (error) {
-    console.error(`[deepseek] Error: ${String(error)}`);
+    console.error(`[mistral] Error: ${String(error)}`);
     return null;
   }
 }

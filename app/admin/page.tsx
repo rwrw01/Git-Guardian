@@ -12,7 +12,7 @@ interface RunningScan {
   username: string;
   startedBy: string;
   startedAt: string;
-  useDeepseek: boolean;
+  useMistral: boolean;
   status: string;
 }
 
@@ -29,7 +29,7 @@ interface DashboardData {
   }>;
   severityCounts: { CRITICAL: number; HIGH: number; MEDIUM: number; LOW: number };
   lastScanId?: string;
-  lastDeepseekAnalysis?: string | null;
+  lastMistralAnalysis?: string | null;
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
   const [scanUsername, setScanUsername] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState("");
-  const [useDeepseek, setUseDeepseek] = useState(true);
+  const [useMistral, setUseDeepseek] = useState(true);
   const [scanProgress, setScanProgress] = useState("");
   const [warnings, setWarnings] = useState<HealthWarning[]>([]);
   const [runningScans, setRunningScans] = useState<RunningScan[]>([]);
@@ -78,7 +78,7 @@ export default function AdminDashboard() {
       recentFindings: allFindings.slice(0, 15),
       severityCounts,
       lastScanId: latestReport?.id as string | undefined,
-      lastDeepseekAnalysis: latestReport?.deepseekAnalysis as string | null | undefined,
+      lastMistralAnalysis: latestReport?.mistralAnalysis as string | null | undefined,
     });
 
     // Health checks + running scans
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
       { delay: 3000, msg: "Bestanden scannen op secrets..." },
       { delay: 10000, msg: "Dependency vulnerabilities checken (OSV.dev)..." },
       { delay: 20000, msg: "PII-detectie uitvoeren..." },
-      { delay: 35000, msg: useDeepseek ? "DeepSeek AI-analyse draaien..." : "Rapport genereren..." },
+      { delay: 35000, msg: useMistral ? "Mistral AI-analyse draaien..." : "Rapport genereren..." },
       { delay: 60000, msg: "Rapport opslaan en e-mail versturen..." },
     ];
     const timers = progressSteps.map((step) =>
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           githubUsername: scanUsername,
-          useDeepseek,
+          useMistral,
           sendEmail: true,
         }),
       });
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         setScanResult(
           `Scan voltooid: ${result.findings} bevindingen in ${result.repos} repos` +
-          (result.hasDeepseekAnalysis ? " (incl. AI-analyse)" : "") +
+          (result.hasMistralAnalysis ? " (incl. AI-analyse)" : "") +
           ". Rapport verzonden per email."
         );
         await load();
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
           <strong>Scan actief:</strong>{" "}
           {runningScans.map((s) => {
             const elapsed = Math.round((Date.now() - new Date(s.startedAt).getTime()) / 1000);
-            return `${s.username} (${elapsed}s${s.useDeepseek ? ", DeepSeek" : ""})`;
+            return `${s.username} (${elapsed}s${s.useMistral ? ", Mistral" : ""})`;
           }).join(", ")}
         </div>
       )}
@@ -325,11 +325,11 @@ export default function AdminDashboard() {
           <label style={{ fontSize: 12, color: "#858585", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
             <input
               type="checkbox"
-              checked={useDeepseek}
+              checked={useMistral}
               onChange={(e) => setUseDeepseek(e.target.checked)}
               style={{ accentColor: "#2ea043" }}
             />
-            DeepSeek AI-analyse
+            Mistral AI-analyse
           </label>
         </div>
         {/* Scan progress */}
@@ -364,8 +364,8 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* DeepSeek Analysis (if latest scan has one) */}
-      {data?.lastDeepseekAnalysis && (
+      {/* Mistral Analysis (if latest scan has one) */}
+      {data?.lastMistralAnalysis && (
         <div
           style={{
             background: "#252526",
@@ -376,9 +376,9 @@ export default function AdminDashboard() {
           }}
         >
           <h2 style={{ fontSize: 13, color: "#cccccc", fontWeight: 600, marginTop: 0, marginBottom: 12, textTransform: "uppercase" }}>
-            Laatste AI-analyse (DeepSeek)
+            Laatste AI-analyse (Mistral)
           </h2>
-          <MarkdownPanel content={data.lastDeepseekAnalysis} maxHeight={400} />
+          <MarkdownPanel content={data.lastMistralAnalysis} maxHeight={400} />
         </div>
       )}
 

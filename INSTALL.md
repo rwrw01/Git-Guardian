@@ -14,7 +14,7 @@
 | GitHub | Personal Access Token (read-only, public repos scope) | [github.com/settings/tokens](https://github.com/settings/tokens) |
 | GitHub | OAuth App (for admin portal login) | [github.com/settings/developers](https://github.com/settings/developers) |
 | Resend | API key + verified sender domain | [resend.com/api-keys](https://resend.com/api-keys) |
-| DeepSeek | API key (optional, only for owner AI analysis) | [platform.deepseek.com/api_keys](https://platform.deepseek.com/api_keys) |
+| Mistral | API key (optional, only for owner AI analysis) | [console.mistral.ai/api-keys](https://console.mistral.ai/api-keys) |
 | Vercel | Upstash Redis store (via Marketplace) | [vercel.com/dashboard/stores](https://vercel.com/dashboard/stores) |
 
 ## Step 1: Clone and install
@@ -51,7 +51,7 @@ AUTH_SECRET=openssl-rand-hex-32-output-here
 ADMIN_GITHUB_USERS=rwrw01
 
 # Optional (owner-only AI analysis)
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+MISTRAL_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 | Variable | Required | Purpose |
@@ -66,10 +66,10 @@ DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 | `GITHUB_CLIENT_SECRET` | Yes | GitHub OAuth App client secret |
 | `AUTH_SECRET` | Yes | NextAuth session encryption key (`openssl rand -hex 32`) |
 | `ADMIN_GITHUB_USERS` | Yes | Comma-separated GitHub usernames allowed to access admin portal |
-| `DEEPSEEK_API_KEY` | No | DeepSeek API key for AI-powered code analysis (owner scans only) |
+| `MISTRAL_API_KEY` | No | Mistral API key for AI-powered code analysis (owner scans only) |
 
 **Security notes:**
-- `DEEPSEEK_API_KEY` is stored as a Vercel backend environment variable only. Never exposed client-side.
+- `MISTRAL_API_KEY` is stored as a Vercel backend environment variable only. Never exposed client-side.
 - `ADMIN_GITHUB_USERS` is a whitelist — only these GitHub accounts can log into the admin portal.
 - `AUTH_SECRET` encrypts JWT sessions. Generate with `openssl rand -hex 32`.
 - All admin actions are logged in an immutable audit trail.

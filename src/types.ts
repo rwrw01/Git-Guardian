@@ -56,7 +56,7 @@ export interface Subscriber {
   createdAt: string;
   lastScanAt: string | null;
   isOwner: boolean;
-  deepseekEnabled: boolean;
+  mistralEnabled: boolean;
   scanFrequency?: "daily" | "weekly" | "monthly";
 }
 
@@ -70,7 +70,7 @@ export const EnvSchema = z.object({
   SCAN_EMAIL_FROM: z.string().email(),
   CRON_SECRET: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  DEEPSEEK_API_KEY: z.string().optional(),
+  MISTRAL_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -142,7 +142,7 @@ export interface ScanReport {
     dependencies: number;
     pii: number;
   };
-  deepseekAnalysis?: string | null;
+  mistralAnalysis?: string | null;
   /** "delta" = only new findings, "full" = all findings */
   reportType?: "delta" | "full";
   /** Number of previously known findings (only in delta reports) */

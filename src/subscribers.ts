@@ -86,7 +86,7 @@ export async function addSubscriber(
     createdAt: new Date().toISOString(),
     lastScanAt: null,
     isOwner,
-    deepseekEnabled: isOwner,
+    mistralEnabled: isOwner,
   };
 
   await kv.set(key(username), subscriber);

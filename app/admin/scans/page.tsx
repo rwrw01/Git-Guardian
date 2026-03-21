@@ -30,7 +30,7 @@ interface ScanReport {
   totalRepos: number;
   findings: Finding[];
   maturity: { secrets: number; dependencies: number; pii: number };
-  deepseekAnalysis?: string | null;
+  mistralAnalysis?: string | null;
   reportType?: "delta" | "full";
   previousFindingsCount?: number;
 }
@@ -234,11 +234,11 @@ export default function ScansPage() {
                 </div>
               </div>
 
-              {/* DeepSeek analysis */}
-              {selected.deepseekAnalysis && (
+              {/* Mistral analysis */}
+              {selected.mistralAnalysis && (
                 <div style={{ marginBottom: 16 }}>
-                  <h3 style={{ fontSize: 12, color: "#858585", fontWeight: 600, marginTop: 0, marginBottom: 8, textTransform: "uppercase" }}>AI-analyse (DeepSeek)</h3>
-                  <MarkdownPanel content={selected.deepseekAnalysis} maxHeight={400} />
+                  <h3 style={{ fontSize: 12, color: "#858585", fontWeight: 600, marginTop: 0, marginBottom: 8, textTransform: "uppercase" }}>AI-analyse (Mistral)</h3>
+                  <MarkdownPanel content={selected.mistralAnalysis} maxHeight={400} />
                 </div>
               )}
 

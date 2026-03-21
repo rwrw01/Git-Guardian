@@ -193,7 +193,7 @@ function findingsByCategory(findings: Finding[], category: Category): string {
 
 export function renderReportHtml(
   report: ScanReport,
-  deepseekAnalysis?: string | null,
+  mistralAnalysis?: string | null,
 ): string {
   const { findings } = report;
   const critical = findings.filter((f) => f.severity === Severity.CRITICAL);
@@ -261,9 +261,9 @@ ${findingsByCategory(findings, Category.DEPENDENCY)}
 ${findingsByCategory(findings, Category.PII)}
 
 ${
-  deepseekAnalysis
-    ? `<h2 style="margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;">AI-analyse (DeepSeek)</h2>
-<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.6;">${deepseekAnalysis}</div>`
+  mistralAnalysis
+    ? `<h2 style="margin-top:32px;padding-top:16px;border-top:2px solid #e5e7eb;">AI-analyse (Mistral)</h2>
+<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.6;">${mistralAnalysis}</div>`
     : ""
 }
 

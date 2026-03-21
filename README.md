@@ -18,9 +18,9 @@ When findings exist, a severity-classified report is emailed to the repository o
 
 Git Guardian runs in two modes:
 
-- **Daily cron (owner)** — Scans all subscribers automatically at 06:00 UTC. For the repo owner, scans include an optional DeepSeek AI analysis pass that reviews suspicious patterns, identifies likely false positives, and flags risks that regex alone would miss.
+- **Daily cron (owner)** — Scans all subscribers automatically at 06:00 UTC. For the repo owner, scans include an optional Mistral AI analysis pass that reviews suspicious patterns, identifies likely false positives, and flags risks that regex alone would miss.
 
-- **Self-service (anyone)** — A web page where anyone can enter their GitHub username and email to trigger a one-time scan of their public repos. The scan runs without DeepSeek (cost/privacy reasons). The user is added as a subscriber and receives future daily scans. Every email includes an unsubscribe link.
+- **Self-service (anyone)** — A web page where anyone can enter their GitHub username and email to trigger a one-time scan of their public repos. The scan runs without Mistral (cost/privacy reasons). The user is added as a subscriber and receives future daily scans. Every email includes an unsubscribe link.
 
 ## What makes it different
 
@@ -29,7 +29,7 @@ Git Guardian is not a wrapper around existing tools. It is a purpose-built scann
 ## How it works
 
 ```
-GitHub API          OSV.dev API         DeepSeek API (owner only)
+GitHub API          OSV.dev API         Mistral API (owner only)
     │                   │                       │
     ▼                   ▼                       ▼
 ┌─────────┐     ┌──────────────┐     ┌──────────────────┐
@@ -48,7 +48,7 @@ GitHub API          OSV.dev API         DeepSeek API (owner only)
        └────────────┘
 ```
 
-Per repository: fetch the file tree via GitHub API (no clone needed), filter text files, run secret + PII scans in parallel, run dependency scan on manifest files, aggregate findings, optionally pass through DeepSeek, generate report, send email.
+Per repository: fetch the file tree via GitHub API (no clone needed), filter text files, run secret + PII scans in parallel, run dependency scan on manifest files, aggregate findings, optionally pass through Mistral, generate report, send email.
 
 ## Project structure
 
@@ -63,7 +63,7 @@ git-guardian/
 │   ├── secrets.ts           # Secret/token detection (regex + entropy)
 │   ├── dependencies.ts      # Dependency vuln scan via OSV.dev API
 │   ├── pii.ts               # PII detection (BSN/IBAN/email/phone/KvK)
-│   ├── deepseek.ts          # DeepSeek AI integration
+│   ├── mistral.ts          # Mistral AI integration
 │   ├── reporter.ts          # Findings aggregation + severity classification
 │   ├── email.ts             # Resend email delivery (Dutch HTML report)
 │   ├── patterns.ts          # All regex patterns (secrets + PII)
@@ -109,7 +109,7 @@ See **[INSTALL.md](INSTALL.md)** for the full installation, configuration, and d
 |---------|---------|------|
 | [GitHub REST API](https://docs.github.com/en/rest) | Fetch repos and file content | Free (rate limited) |
 | [OSV.dev API](https://osv.dev/) | Dependency vulnerability database | Free, open source (Apache-2.0) |
-| [DeepSeek API](https://platform.deepseek.com/) | AI analysis of suspicious patterns | Paid, owner-scans only |
+| [Mistral API](https://mistral.ai/) | AI analysis of suspicious patterns | Paid, owner-scans only |
 | [Resend](https://resend.com/) | Email delivery | Free tier available |
 | [Vercel](https://vercel.com/) | Hosting, cron, KV (Redis) | Pro plan for 5 min function timeout |
 

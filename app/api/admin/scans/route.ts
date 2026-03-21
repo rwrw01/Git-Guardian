@@ -8,7 +8,7 @@ import { getRedis } from "../../../../src/redis";
 import { scanForSecrets } from "../../../../src/secrets";
 import { scanForPii } from "../../../../src/pii";
 import { scanForDependencyVulns } from "../../../../src/dependencies";
-import { analyzeWithDeepSeek } from "../../../../src/deepseek";
+import { analyzeWithMistral } from "../../../../src/mistral";
 import { buildReport } from "../../../../src/reporter";
 import { sendReportEmail } from "../../../../src/email";
 import { saveScanReport } from "../../../../src/scan-store";
@@ -66,10 +66,10 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // DeepSeek prompt endpoint
-  if (searchParams.get("deepseek-prompt") === "true") {
-    const { DEEPSEEK_SYSTEM_PROMPT } = await import("../../../../src/deepseek");
-    return NextResponse.json({ prompt: DEEPSEEK_SYSTEM_PROMPT });
+  // Mistral prompt endpoint
+  if (searchParams.get("mistral-prompt") === "true") {
+    const { MISTRAL_SYSTEM_PROMPT } = await import("../../../../src/mistral");
+    return NextResponse.json({ prompt: MISTRAL_SYSTEM_PROMPT });
   }
 
   // Config endpoint
@@ -139,9 +139,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "githubUsername is required" }, { status: 400 });
   }
   const targetUsername = body.githubUsername as string;
-  const useDeepseek = body.useDeepseek ?? false;
+  const useMistral = body.useMistral ?? false;
 
-  await logAudit(actor, "SCAN_MANUAL", targetUsername, `Manual scan triggered${useDeepseek ? " with DeepSeek" : ""}`);
+  await logAudit(actor, "SCAN_MANUAL", targetUsername, `Manual scan triggered${useMistral ? " with Mistral" : ""}`);
 
   // Track running scan in Redis (visible across page navigation)
   const redis = getRedis();
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
     username: targetUsername,
     startedBy: actor,
     startedAt: new Date().toISOString(),
-    useDeepseek,
+    useMistral,
     status: "scanning",
   }, { ex: 600 }); // Auto-expire after 10 min (safety net)
 
@@ -197,18 +197,18 @@ export async function POST(request: NextRequest) {
     const filteredFindings = await filterFalsePositives(allFindings);
     const report = buildReport(targetUsername, repos.length, filteredFindings);
 
-    let deepseekAnalysis: string | null = null;
-    if (useDeepseek && allFindings.length > 0) {
+    let mistralAnalysis: string | null = null;
+    if (useMistral && allFindings.length > 0) {
       const codeContext = allFindings
         .slice(0, 10)
         .map((f) => `${f.file}:${f.line} — ${f.description}`)
         .join("\n");
-      deepseekAnalysis = await analyzeWithDeepSeek(allFindings, codeContext);
+      mistralAnalysis = await analyzeWithMistral(allFindings, codeContext);
     }
 
-    // Store DeepSeek analysis in the report
-    if (deepseekAnalysis) {
-      report.deepseekAnalysis = deepseekAnalysis;
+    // Store Mistral analysis in the report
+    if (mistralAnalysis) {
+      report.mistralAnalysis = mistralAnalysis;
     }
 
     const scanId = await saveScanReport(report);
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
     const sub = await getSubscriber(targetUsername);
     if (sub && body.sendEmail !== false) {
       const token = generateUnsubscribeToken(targetUsername);
-      await sendReportEmail(report, sub.email, token, deepseekAnalysis);
+      await sendReportEmail(report, sub.email, token, mistralAnalysis);
       await updateLastScan(targetUsername);
     }
 
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
       scanId,
       findings: allFindings.length,
       repos: repos.length,
-      hasDeepseekAnalysis: !!deepseekAnalysis,
+      hasMistralAnalysis: !!mistralAnalysis,
     });
   } catch (error) {
     await redis.del(scanKey);

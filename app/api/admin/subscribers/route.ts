@@ -39,7 +39,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updates: Record<string, unknown> = {};
-  if (typeof body.deepseekEnabled === "boolean") updates.deepseekEnabled = body.deepseekEnabled;
+  if (typeof body.mistralEnabled === "boolean") updates.mistralEnabled = body.mistralEnabled;
   if (["daily", "weekly", "monthly"].includes(body.scanFrequency)) updates.scanFrequency = body.scanFrequency;
 
   await updateSubscriberSettings(body.githubUsername, updates);

@@ -16,7 +16,7 @@ import { getRedis } from "../../../src/redis";
 
 // ---------------------------------------------------------------------------
 // One-time scan endpoint — POST /api/scan-once
-// Self-service: no DeepSeek, rate limited
+// Self-service: no Mistral, rate limited
 // ---------------------------------------------------------------------------
 
 export const runtime = "nodejs";
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Scan all public repos (no DeepSeek)
+    // Scan all public repos (no Mistral)
     const repos = await listPublicRepos(githubUsername);
     const allFindings: import("../../../src/types").Finding[] = [];
 
