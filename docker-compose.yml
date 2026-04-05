@@ -1,8 +1,6 @@
 services:
   gitguardian:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/rwrw01/git-guardian:latest
     container_name: gitguardian
     networks:
       - net-fe-gitguardian
